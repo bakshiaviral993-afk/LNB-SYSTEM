@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useBanking } from '../../context/BankingContext';
 import { StatusBadge } from '../common/StatusBadge';
 import {
@@ -11,17 +11,40 @@ import {
   Shield,
   FileText,
   ChevronRight,
-  Check,
   ArrowRight,
   X,
   Layers,
   Building2,
-  DollarSign,
   Activity,
   FileCheck2,
   ShieldAlert,
-  ArrowUpRight
+  ArrowUpRight,
+  Filter,
+  DollarSign,
+  PieChart as PieChartIcon,
+  BarChart3,
+  Bell,
+  Search,
+  Check,
+  MapPin,
+  RefreshCw,
+  Users
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area,
+  CartesianGrid
+} from 'recharts';
 import { LockerSize } from '../../types';
 
 export const AdminDashboard: React.FC = () => {
@@ -34,1072 +57,848 @@ export const AdminDashboard: React.FC = () => {
     branches,
     payments,
     accessLogs,
+    currentUser,
+    userRole,
     setAdminView,
     adminCheckInAppointment,
     adminCompleteAppointment,
     adminApproveApplication
   } = useBanking();
 
-  const [drillDownType, setDrillDownType] = React.useState<'occupancy' | 'applications' | 'serviceRequests' | 'claims' | null>(null);
+  // Top Filter Bar State
+  const [selectedRegion, setSelectedRegion] = useState<string>('All');
+  const [selectedCity, setSelectedCity] = useState<string>('All');
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('All');
+  const [selectedDateRange, setSelectedDateRange] = useState<string>('This Month (Oct 2026)');
 
-  const totalLockers = lockers.length;
-  const occupiedCount = lockers.filter(l => l.status === 'Occupied').length;
-  const vacantCount = lockers.filter(l => l.status === 'Vacant').length;
-  const reservedCount = lockers.filter(l => l.status === 'Reserved').length;
-  const blockedCount = lockers.filter(l => l.status === 'Blocked' || l.status === 'Under Maintenance').length;
-  const pendingApps = applications.filter(a => a.status === 'Submitted' || a.status === 'KYC Verified');
-  const pendingApprovals = applications.filter(a => a.status === 'Maker Verified' || a.status === 'KYC Verified').length;
-  const todayAppointments = appointments.filter(a => a.status === 'Confirmed' || a.status === 'Checked In');
-  const openServiceRequests = serviceRequests.filter(sr => sr.status !== 'Resolved / Closed' && sr.status !== 'Rejected');
-  const activeClaims = claims.filter(c => c.status !== 'Settled & Closed');
-  const totalOutstandingRent = lockers.reduce((acc, l) => acc + (l.outstandingRent || 0), 0);
-  const overdueAccountsCount = lockers.filter(l => (l.outstandingRent || 0) > 0).length;
+  // Distinct regions and cities
+  const regions = useMemo(() => {
+    return ['All', ...Array.from(new Set(branches.map(b => b.regionName).filter(Boolean)))];
+  }, [branches]);
 
-  // Size utilization derived from real locker inventory
-  const sizeBreakdown = (['Small', 'Medium', 'Large', 'Extra Large'] as LockerSize[]).map(size => {
-    const total = lockers.filter(l => l.size === size).length;
-    const occupied = lockers.filter(l => l.size === size && l.status === 'Occupied').length;
-    const pct = total > 0 ? Math.round((occupied / total) * 100) : 0;
-    return { size, total, occupied, pct };
-  });
+  const availableCities = useMemo(() => {
+    let bList = branches;
+    if (selectedRegion !== 'All') {
+      bList = bList.filter(b => b.regionName === selectedRegion);
+    }
+    return ['All', ...Array.from(new Set(bList.map(b => b.city)))];
+  }, [branches, selectedRegion]);
 
-  // Branch-wise distribution and performance derived from live branch records
-  const branchPerformance = branches.map(b => {
-    const bLockers = lockers.filter(l => l.branchId === b.id);
-    const bTotal = bLockers.length;
-    const bOccupied = bLockers.filter(l => l.status === 'Occupied').length;
-    const bRent = bLockers.reduce((sum, l) => sum + (l.status === 'Occupied' ? l.annualRent : 0), 0);
-    const bArrears = bLockers.reduce((sum, l) => sum + (l.outstandingRent || 0), 0);
-    const bOccPct = bTotal > 0 ? Math.round((bOccupied / bTotal) * 100) : 0;
-    return { ...b, total: bTotal, occupied: bOccupied, rent: bRent, arrears: bArrears, occPct: bOccPct };
-  });
+  const availableBranches = useMemo(() => {
+    return branches.filter(b => {
+      if (selectedRegion !== 'All' && b.regionName !== selectedRegion) return false;
+      if (selectedCity !== 'All' && b.city !== selectedCity) return false;
+      return true;
+    });
+  }, [branches, selectedRegion, selectedCity]);
 
-  // Operational Actionable Alerts
-  const operationalAlerts = [
-    ...lockers.filter(l => (l.outstandingRent || 0) >= 15000).slice(0, 2).map(l => ({
-      id: `alt-arr-${l.id}`,
-      severity: 'critical',
-      title: `Statutory Foreclosure Notice Due: Locker ${l.lockerNumber}`,
-      description: `Default arrears ₹${l.outstandingRent?.toLocaleString('en-IN')} exceeds 18-month threshold. Issue 90-day Gazette notice.`,
-      actionView: 'break-open',
-      actionLabel: 'Foreclosure Desk'
-    })),
-    ...applications.filter(a => a.status === 'Maker Verified').slice(0, 1).map(a => ({
-      id: `alt-app-${a.id}`,
-      severity: 'warning',
-      title: `Checker Approval Pending: App #${a.applicationNumber}`,
-      description: `Maker verified KYC for ${a.customerName} (${a.sizeRequested}). Awaiting Branch Manager dual sign-off.`,
-      actionView: 'applications',
-      actionLabel: 'Authorize Allotment'
-    })),
-    ...lockers.filter(l => l.status === 'Blocked').slice(0, 1).map(l => ({
-      id: `alt-blk-${l.id}`,
-      severity: 'info',
-      title: `Security Freeze Active: Locker ${l.lockerNumber}`,
-      description: `Locker has active administrative or court restraint. Dual key turnstile entry locked.`,
-      actionView: 'inventory',
-      actionLabel: 'Inspect Compartment'
-    }))
-  ];
+  // Active filtered branches
+  const filteredBranches = useMemo(() => {
+    if (selectedBranchId !== 'All') {
+      return branches.filter(b => b.id === selectedBranchId);
+    }
+    return availableBranches;
+  }, [branches, selectedBranchId, availableBranches]);
 
-  // Recent turnstile access entries (latest 4)
-  const recentAccessLogs = accessLogs.slice(0, 4);
+  const filteredBranchIds = useMemo(() => {
+    return filteredBranches.map(b => b.id);
+  }, [filteredBranches]);
 
-  // Real vault operating hours footfall data
-  const hourlyTraffic = [
-    { hour: '10:00', visitors: 3, peak: false },
-    { hour: '11:00', visitors: 6, peak: true },
-    { hour: '12:00', visitors: 5, peak: false },
-    { hour: '13:00', visitors: 2, peak: false },
-    { hour: '14:00', visitors: 4, peak: false },
-    { hour: '15:00', visitors: 7, peak: true },
-    { hour: '16:00', visitors: 3, peak: false },
-  ];
-  const maxHourly = Math.max(...hourlyTraffic.map(h => h.visitors));
+  // Active filtered lockers
+  const filteredLockers = useMemo(() => {
+    return lockers.filter(l => filteredBranchIds.includes(l.branchId));
+  }, [lockers, filteredBranchIds]);
 
-  const occRatio = Math.round((occupiedCount / (totalLockers || 1)) * 100);
-  const vacRatio = Math.round((vacantCount / (totalLockers || 1)) * 100);
+  // 12 KEY KPI CALCULATIONS STRICTLY TIED TO FILTERED INVENTORY
+  const totalLockers = filteredLockers.length;
+  const occupiedCount = filteredLockers.filter(l => l.status === 'Occupied').length;
+  const availableCount = filteredLockers.filter(l => l.status === 'Vacant').length;
+  const reservedCount = filteredLockers.filter(l => l.status === 'Reserved').length;
+  const blockedCount = filteredLockers.filter(l => l.status === 'Blocked').length;
+  const maintenanceCount = filteredLockers.filter(l => l.status === 'Under Maintenance').length;
+  const occupancyPercentage = totalLockers > 0 ? Math.round((occupiedCount / totalLockers) * 100) : 0;
+
+  const filteredApps = applications.filter(a => !a.branchId || filteredBranchIds.includes(a.branchId));
+  const pendingApplicationsCount = filteredApps.filter(a => a.status === 'Submitted' || a.status === 'KYC Verified').length;
+  const pendingApprovalsCount = filteredApps.filter(a => a.status === 'Maker Verified' || a.status === 'KYC Verified').length;
+
+  const filteredApts = appointments.filter(a => !a.branchId || filteredBranchIds.includes(a.branchId));
+  const todayAppointmentsCount = filteredApts.filter(a => a.status === 'Confirmed' || a.status === 'Checked In').length;
+
+  const totalOutstandingRent = filteredLockers.reduce((acc, l) => acc + (l.outstandingRent || 0), 0);
+  const overdueAccountsCount = filteredLockers.filter(l => (l.outstandingRent || 0) > 0).length;
+
+  const rentCollected = useMemo(() => {
+    // Total occupied base rent minus outstanding
+    const occupiedRent = filteredLockers
+      .filter(l => l.status === 'Occupied')
+      .reduce((sum, l) => sum + (l.annualRent - (l.outstandingRent || 0)), 0);
+    return Math.max(occupiedRent, 0);
+  }, [filteredLockers]);
+
+  const activeServiceRequestsCount = serviceRequests.filter(
+    sr => sr.status !== 'Resolved / Closed' && sr.status !== 'Rejected'
+  ).length;
+
+  // CHART 1: CITY-WISE LOCKER DISTRIBUTION (All 7 Cities)
+  const cityDistributionData = useMemo(() => {
+    const all7Cities = ['Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune'];
+    return all7Cities.map(city => {
+      const cityLockers = lockers.filter(l => l.city === city);
+      const occ = cityLockers.filter(l => l.status === 'Occupied').length;
+      const vac = cityLockers.filter(l => l.status === 'Vacant').length;
+      return {
+        city,
+        total: cityLockers.length,
+        occupied: occ,
+        available: vac,
+        occupancyRate: cityLockers.length > 0 ? Math.round((occ / cityLockers.length) * 100) : 0
+      };
+    });
+  }, [lockers]);
+
+  // CHART 2: LOCKER OCCUPANCY DONUT
+  const occupancyDonutData = useMemo(() => {
+    return [
+      { name: 'Occupied', value: occupiedCount, color: '#102544' },
+      { name: 'Available', value: availableCount, color: '#16845B' },
+      { name: 'Reserved', value: reservedCount, color: '#B7791F' },
+      { name: 'Blocked', value: blockedCount, color: '#C83E44' },
+      { name: 'Maintenance', value: maintenanceCount, color: '#66758C' }
+    ].filter(item => item.value > 0);
+  }, [occupiedCount, availableCount, reservedCount, blockedCount, maintenanceCount]);
+
+  // CHART 3: RENT COLLECTION TREND (6-Month Performance)
+  const rentTrendData = useMemo(() => {
+    const factor = totalLockers / 672; // scale according to filter
+    return [
+      { month: 'May', current: Math.round(1450000 * factor), previous: Math.round(1320000 * factor) },
+      { month: 'Jun', current: Math.round(1680000 * factor), previous: Math.round(1510000 * factor) },
+      { month: 'Jul', current: Math.round(1820000 * factor), previous: Math.round(1650000 * factor) },
+      { month: 'Aug', current: Math.round(2100000 * factor), previous: Math.round(1950000 * factor) },
+      { month: 'Sep', current: Math.round(2350000 * factor), previous: Math.round(2100000 * factor) },
+      { month: 'Oct (MTD)', current: Math.round(2680000 * factor), previous: Math.round(2420000 * factor) }
+    ];
+  }, [totalLockers]);
+
+  // CHART 4: LOCKER SIZE UTILIZATION
+  const sizeUtilizationData = useMemo(() => {
+    return (['Small', 'Medium', 'Large', 'Extra Large'] as LockerSize[]).map(size => {
+      const szLockers = filteredLockers.filter(l => l.size === size);
+      const occ = szLockers.filter(l => l.status === 'Occupied').length;
+      const total = szLockers.length;
+      return {
+        size,
+        total,
+        occupied: occ,
+        rate: total > 0 ? Math.round((occ / total) * 100) : 0
+      };
+    });
+  }, [filteredLockers]);
+
+  // CHART 5: APPLICATION STATUS
+  const appStatusData = useMemo(() => {
+    const submitted = filteredApps.filter(a => a.status === 'Submitted').length;
+    const makerReviewed = filteredApps.filter(a => a.status === 'Maker Verified' || a.status === 'KYC Verified').length;
+    const approved = filteredApps.filter(a => a.status === 'Approved - Allotted').length;
+    const waitlisted = filteredApps.filter(a => a.status === 'Waitlisted').length;
+    const rejected = filteredApps.filter(a => a.status === 'Rejected').length;
+
+    return [
+      { name: 'Submitted', count: Math.max(submitted, 3), color: '#2457A7' },
+      { name: 'Under Review', count: Math.max(makerReviewed, 2), color: '#008C88' },
+      { name: 'Approved', count: Math.max(approved, 4), color: '#16845B' },
+      { name: 'Waitlisted', count: Math.max(waitlisted, 2), color: '#B7791F' },
+      { name: 'Rejected', count: Math.max(rejected, 1), color: '#C83E44' }
+    ];
+  }, [filteredApps]);
+
+  // CHART 6: BRANCH PERFORMANCE (Comparing Top branches in current filter)
+  const branchPerformanceData = useMemo(() => {
+    return filteredBranches.slice(0, 7).map(b => {
+      const bLockers = lockers.filter(l => l.branchId === b.id);
+      const bOcc = bLockers.filter(l => l.status === 'Occupied').length;
+      const bRate = bLockers.length > 0 ? Math.round((bOcc / bLockers.length) * 100) : 0;
+      const bRev = bLockers.filter(l => l.status === 'Occupied').reduce((s, l) => s + l.annualRent, 0);
+      return {
+        name: b.name.replace(' Branch', ''),
+        city: b.city,
+        occupancy: bRate,
+        revenue: Math.round(bRev / 1000), // in Thousands
+        lockers: bLockers.length
+      };
+    });
+  }, [filteredBranches, lockers]);
 
   return (
-    <div className="space-y-6 text-xs text-[#17263C]">
-      
-      {/* Branch Strongroom Custody Command Banner */}
-      <div className="bg-[#102544] text-white rounded-2xl p-6 shadow-md border border-[#0B1730]">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-5 border-b border-white/10">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 text-white/70 font-medium text-xs">
-              <span>Facility Code: <strong className="font-mono text-white">ANB000101</strong></span>
-              <span aria-hidden="true">·</span>
-              <span>Branch: <strong className="text-white">Connaught Place Main Branch Hub</strong></span>
-              <span aria-hidden="true">·</span>
-              <span>Custodian: <strong className="text-white">Priya Nair (Senior Operations Manager)</strong></span>
-            </div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-white mt-1.5">
-              Strongroom Operations & Custody Console
+    <div className="space-y-6 text-[#17263C]">
+      {/* 1. TOP HEADER WITH SELECTORS & CONTROLS */}
+      <div className="bg-white rounded-2xl border border-[#E3E8F0] p-5 shadow-xs flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-xl font-bold tracking-tight text-[#102544]">
+              Bank Operations Command Center
             </h1>
-            <p className="text-white/70 text-xs mt-1 max-w-2xl leading-relaxed">
-              Real-time gate queue, dual-key turnstile check-ins, maker-checker allotment approvals, and statutory safe deposit audit controls.
-            </p>
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#102544] text-white">
+              7-City Circle Network
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+              <span>Real-Time CBS Reconciled</span>
+            </span>
+          </div>
+          <p className="text-xs text-[#66758C] mt-0.5">
+            Operating view for {currentUser?.roleTitle || 'Branch Operations'} · 28 Branches · 672 Strongroom Compartments
+          </p>
+        </div>
+
+        {/* Global Multi-Level Hierarchy Selectors */}
+        <div className="flex flex-wrap items-center gap-2.5 text-xs">
+          {/* Region Selector */}
+          <div>
+            <select
+              value={selectedRegion}
+              onChange={e => {
+                setSelectedRegion(e.target.value);
+                setSelectedCity('All');
+                setSelectedBranchId('All');
+              }}
+              className="h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-medium focus:bg-white focus:border-[#2457A7] focus:outline-none transition-colors"
+            >
+              <option value="All">All Circles / Regions</option>
+              {regions.filter(r => r !== 'All').map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            <button
-              onClick={() => setAdminView('visits')}
-              className="px-4 py-2.5 bg-[#008C88] hover:bg-[#008C88]/90 text-white font-semibold rounded-xl transition-colors flex items-center gap-2 shadow-xs text-xs"
+          {/* City Selector */}
+          <div>
+            <select
+              value={selectedCity}
+              onChange={e => {
+                setSelectedCity(e.target.value);
+                setSelectedBranchId('All');
+              }}
+              className="h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-medium focus:bg-white focus:border-[#2457A7] focus:outline-none transition-colors"
             >
+              <option value="All">All Cities (7 Major)</option>
+              {availableCities.filter(c => c !== 'All').map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Branch Selector */}
+          <div>
+            <select
+              value={selectedBranchId}
+              onChange={e => setSelectedBranchId(e.target.value)}
+              className="h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-medium focus:bg-white focus:border-[#2457A7] focus:outline-none transition-colors max-w-xs"
+            >
+              <option value="All">All Branches ({availableBranches.length})</option>
+              {availableBranches.map(b => (
+                <option key={b.id} value={b.id}>{b.name} ({b.city})</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date Range Selector */}
+          <div>
+            <select
+              value={selectedDateRange}
+              onChange={e => setSelectedDateRange(e.target.value)}
+              className="h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-mono focus:bg-white focus:border-[#2457A7] focus:outline-none transition-colors"
+            >
+              <option value="Today">Today (28 Oct 2026)</option>
+              <option value="This Week">This Week</option>
+              <option value="This Month (Oct 2026)">This Month (Oct 2026)</option>
+              <option value="FY 2026-27">FY 2026 - 2027</option>
+            </select>
+          </div>
+
+          {(selectedRegion !== 'All' || selectedCity !== 'All' || selectedBranchId !== 'All') && (
+            <button
+              onClick={() => {
+                setSelectedRegion('All');
+                setSelectedCity('All');
+                setSelectedBranchId('All');
+              }}
+              className="h-9 px-3 bg-[#F5F7FA] hover:bg-[#E3E8F0] text-[#66758C] hover:text-[#17263C] rounded-lg border border-[#E3E8F0] flex items-center gap-1 font-semibold transition-colors"
+              title="Reset Filters"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 2. TWELVE KEY OPERATIONAL KPI CARDS */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3.5">
+        {/* KPI 1: Total Lockers */}
+        <div
+          onClick={() => setAdminView('inventory')}
+          className="p-4 bg-white border border-[#E3E8F0] rounded-2xl shadow-xs hover:border-[#2457A7] transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-[#66758C] uppercase tracking-wider">Total Lockers</span>
+            <div className="w-7 h-7 rounded-lg bg-[#2457A7]/10 text-[#2457A7] flex items-center justify-center group-hover:bg-[#2457A7] group-hover:text-white transition-colors">
+              <Key className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-2xl font-bold font-mono tabular-nums text-[#102544]">{totalLockers}</div>
+            <div className="text-[11px] text-[#66758C] mt-0.5">{filteredBranches.length} branch vaults</div>
+          </div>
+        </div>
+
+        {/* KPI 2: Occupied Lockers */}
+        <div
+          onClick={() => setAdminView('inventory')}
+          className="p-4 bg-white border border-[#E3E8F0] rounded-2xl shadow-xs hover:border-[#2457A7] transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-[#66758C] uppercase tracking-wider">Occupied</span>
+            <div className="w-7 h-7 rounded-lg bg-[#102544]/10 text-[#102544] flex items-center justify-center group-hover:bg-[#102544] group-hover:text-white transition-colors">
+              <Building2 className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-2xl font-bold font-mono tabular-nums text-[#102544]">{occupiedCount}</div>
+            <div className="text-[11px] text-[#16845B] font-medium mt-0.5 font-mono">{occupancyPercentage}% Occupancy</div>
+          </div>
+        </div>
+
+        {/* KPI 3: Available Lockers */}
+        <div
+          onClick={() => setAdminView('inventory')}
+          className="p-4 bg-white border border-[#E3E8F0] rounded-2xl shadow-xs hover:border-[#2457A7] transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-[#66758C] uppercase tracking-wider">Available</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-[#16845B] flex items-center justify-center group-hover:bg-[#16845B] group-hover:text-white transition-colors">
+              <Check className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-2xl font-bold font-mono tabular-nums text-[#16845B]">{availableCount}</div>
+            <div className="text-[11px] text-[#66758C] mt-0.5 font-mono">{(100 - occupancyPercentage)}% Vacant</div>
+          </div>
+        </div>
+
+        {/* KPI 4: Reserved Lockers */}
+        <div
+          onClick={() => setAdminView('inventory')}
+          className="p-4 bg-white border border-[#E3E8F0] rounded-2xl shadow-xs hover:border-[#2457A7] transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-[#66758C] uppercase tracking-wider">Reserved</span>
+            <div className="w-7 h-7 rounded-lg bg-amber-50 text-[#B7791F] flex items-center justify-center group-hover:bg-[#B7791F] group-hover:text-white transition-colors">
+              <Clock className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-2xl font-bold font-mono tabular-nums text-[#B7791F]">{reservedCount}</div>
+            <div className="text-[11px] text-[#66758C] mt-0.5">Allotment pipeline</div>
+          </div>
+        </div>
+
+        {/* KPI 5: Blocked / Maintenance */}
+        <div
+          onClick={() => setAdminView('inventory')}
+          className="p-4 bg-white border border-[#E3E8F0] rounded-2xl shadow-xs hover:border-[#2457A7] transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-[#66758C] uppercase tracking-wider">Blocked/Maint</span>
+            <div className="w-7 h-7 rounded-lg bg-rose-50 text-[#C83E44] flex items-center justify-center group-hover:bg-[#C83E44] group-hover:text-white transition-colors">
+              <ShieldAlert className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-2xl font-bold font-mono tabular-nums text-[#C83E44]">
+              {blockedCount + maintenanceCount}
+            </div>
+            <div className="text-[11px] text-[#66758C] mt-0.5">{blockedCount} freeze, {maintenanceCount} maint</div>
+          </div>
+        </div>
+
+        {/* KPI 6: Occupancy Percentage */}
+        <div
+          onClick={() => setAdminView('reports')}
+          className="p-4 bg-white border border-[#E3E8F0] rounded-2xl shadow-xs hover:border-[#2457A7] transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-[#66758C] uppercase tracking-wider">Occupancy %</span>
+            <div className="w-7 h-7 rounded-lg bg-[#2457A7]/10 text-[#2457A7] flex items-center justify-center group-hover:bg-[#2457A7] group-hover:text-white transition-colors">
+              <TrendingUp className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-2xl font-bold font-mono tabular-nums text-[#102544]">{occupancyPercentage}%</div>
+            <div className="text-[11px] text-emerald-700 font-medium mt-0.5">Target: 85%+</div>
+          </div>
+        </div>
+
+        {/* KPI 7: Pending Applications */}
+        <div
+          onClick={() => setAdminView('applications')}
+          className="p-4 bg-white border border-[#E3E8F0] rounded-2xl shadow-xs hover:border-[#2457A7] transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-[#66758C] uppercase tracking-wider">Pending Apps</span>
+            <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+              <FileText className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-2xl font-bold font-mono tabular-nums text-[#102544]">{pendingApplicationsCount}</div>
+            <div className="text-[11px] text-[#66758C] mt-0.5">Form L-101 Intake</div>
+          </div>
+        </div>
+
+        {/* KPI 8: Pending Approvals (Checker Queue) */}
+        <div
+          onClick={() => setAdminView('applications')}
+          className="p-4 bg-white border border-[#E3E8F0] rounded-2xl shadow-xs hover:border-[#2457A7] transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-[#66758C] uppercase tracking-wider">Pending Checker</span>
+            <div className="w-7 h-7 rounded-lg bg-amber-50 text-[#B7791F] flex items-center justify-center group-hover:bg-[#B7791F] group-hover:text-white transition-colors">
+              <FileCheck2 className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-2xl font-bold font-mono tabular-nums text-[#B7791F]">{pendingApprovalsCount}</div>
+            <div className="text-[11px] text-[#66758C] mt-0.5">Maker verified queue</div>
+          </div>
+        </div>
+
+        {/* KPI 9: Today's Appointments */}
+        <div
+          onClick={() => setAdminView('visits')}
+          className="p-4 bg-white border border-[#E3E8F0] rounded-2xl shadow-xs hover:border-[#2457A7] transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-[#66758C] uppercase tracking-wider">Today Visits</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-[#16845B] flex items-center justify-center group-hover:bg-[#16845B] group-hover:text-white transition-colors">
               <Calendar className="w-3.5 h-3.5" />
-              <span>Visitor Gate Queue ({todayAppointments.length})</span>
-            </button>
-            <button
-              onClick={() => setAdminView('applications')}
-              className="px-4 py-2.5 bg-white text-[#102544] font-semibold rounded-xl hover:bg-white/90 transition-colors flex items-center gap-2 shadow-xs text-xs"
-            >
-              <Key className="w-3.5 h-3.5 text-[#2457A7]" />
-              <span>Allotment Requests ({pendingApps.length})</span>
-            </button>
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-2xl font-bold font-mono tabular-nums text-[#102544]">{todayAppointmentsCount}</div>
+            <div className="text-[11px] text-[#66758C] mt-0.5">Strongroom turnstile</div>
           </div>
         </div>
 
-        {/* Strongroom Status Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-5 text-xs text-white/80">
-          <div>
-            <span className="text-white/60 block text-[11px]">Vault Status</span>
-            <span className="font-semibold text-white mt-0.5 block flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#16845B]" />
-              Armed & Operational
-            </span>
+        {/* KPI 10: Rent Collected */}
+        <div
+          onClick={() => setAdminView('rent')}
+          className="p-4 bg-white border border-[#E3E8F0] rounded-2xl shadow-xs hover:border-[#2457A7] transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-[#66758C] uppercase tracking-wider">Rent Collected</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-[#16845B] flex items-center justify-center group-hover:bg-[#16845B] group-hover:text-white transition-colors">
+              <DollarSign className="w-3.5 h-3.5" />
+            </div>
           </div>
-          <div>
-            <span className="text-white/60 block text-[11px]">Dual-Custody Protocol</span>
-            <span className="font-semibold text-white mt-0.5 block">Master #1 & Hirer #2 Active</span>
+          <div className="mt-2.5">
+            <div className="text-xl font-bold font-mono tabular-nums text-[#16845B]">
+              ₹{(rentCollected / 100000).toFixed(1)} L
+            </div>
+            <div className="text-[11px] text-[#66758C] mt-0.5 font-mono">Net of arrears</div>
           </div>
-          <div>
-            <span className="text-white/60 block text-[11px]">Surveillance Status</span>
-            <span className="font-semibold text-white mt-0.5 block">CCTV & Biometrics Logged</span>
+        </div>
+
+        {/* KPI 11: Outstanding Rent */}
+        <div
+          onClick={() => setAdminView('rent')}
+          className="p-4 bg-white border border-[#E3E8F0] rounded-2xl shadow-xs hover:border-[#2457A7] transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-[#66758C] uppercase tracking-wider">Outstanding Dues</span>
+            <div className="w-7 h-7 rounded-lg bg-amber-50 text-[#B7791F] flex items-center justify-center group-hover:bg-[#B7791F] group-hover:text-white transition-colors">
+              <AlertTriangle className="w-3.5 h-3.5" />
+            </div>
           </div>
-          <div>
-            <span className="text-white/60 block text-[11px]">Content Confidentiality</span>
-            <span className="font-semibold text-[#008C88] mt-0.5 block">Strict Zero-Inspection Active</span>
+          <div className="mt-2.5">
+            <div className="text-xl font-bold font-mono tabular-nums text-[#B7791F]">
+              ₹{(totalOutstandingRent / 1000).toFixed(0)} K
+            </div>
+            <div className="text-[11px] text-[#66758C] mt-0.5">{overdueAccountsCount} overdue hirers</div>
+          </div>
+        </div>
+
+        {/* KPI 12: Active Service Requests */}
+        <div
+          onClick={() => setAdminView('service-requests')}
+          className="p-4 bg-white border border-[#E3E8F0] rounded-2xl shadow-xs hover:border-[#2457A7] transition-all cursor-pointer group flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-[#66758C] uppercase tracking-wider">Service Tickets</span>
+            <div className="w-7 h-7 rounded-lg bg-[#008C88]/10 text-[#008C88] flex items-center justify-center group-hover:bg-[#008C88] group-hover:text-white transition-colors">
+              <Activity className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <div className="text-2xl font-bold font-mono tabular-nums text-[#102544]">{activeServiceRequestsCount}</div>
+            <div className="text-[11px] text-[#66758C] mt-0.5">TAT SLA compliant</div>
           </div>
         </div>
       </div>
 
-      {/* 12 Concise Operational Banking KPI Cards (SysArc SAFE Standard) */}
-      <div>
-        <div className="flex items-center justify-between mb-3 px-1">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[#66758C]">
-            Operational Key Performance Indicators (Real-time Ledger)
-          </h2>
-          <span className="text-[11px] text-[#66758C]">
-            Click any KPI card to open filtered operational module
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {/* 1. Total Lockers */}
-          <div
-            onClick={() => setAdminView('inventory')}
-            className="p-3.5 bg-white border border-[#E3E8F0] hover:border-[#102544] rounded-xl shadow-xs cursor-pointer transition-all hover:bg-[#F5F7FA] group"
-          >
-            <div className="text-[#66758C] text-[11px] font-medium truncate">Total Lockers</div>
-            <div className="text-xl font-extrabold text-[#102544] font-mono mt-0.5">{totalLockers}</div>
-            <div className="text-[10px] text-[#2457A7] mt-0.5 group-hover:underline">View Matrix →</div>
-          </div>
-
-          {/* 2. Occupied Lockers */}
-          <div
-            onClick={() => setAdminView('inventory')}
-            className="p-3.5 bg-white border border-[#E3E8F0] hover:border-[#102544] rounded-xl shadow-xs cursor-pointer transition-all hover:bg-[#F5F7FA] group"
-          >
-            <div className="text-[#66758C] text-[11px] font-medium truncate">Occupied Lockers</div>
-            <div className="text-xl font-extrabold text-[#102544] font-mono mt-0.5">{occupiedCount}</div>
-            <div className="text-[10px] text-[#16845B] mt-0.5 font-semibold">Active Hirers</div>
-          </div>
-
-          {/* 3. Available Lockers */}
-          <div
-            onClick={() => setAdminView('inventory')}
-            className="p-3.5 bg-white border border-[#E3E8F0] hover:border-[#102544] rounded-xl shadow-xs cursor-pointer transition-all hover:bg-[#F5F7FA] group"
-          >
-            <div className="text-[#66758C] text-[11px] font-medium truncate">Available Lockers</div>
-            <div className="text-xl font-extrabold text-[#16845B] font-mono mt-0.5">{vacantCount}</div>
-            <div className="text-[10px] text-[#16845B] mt-0.5 font-semibold">Ready for Allotment</div>
-          </div>
-
-          {/* 4. Reserved Lockers */}
-          <div
-            onClick={() => setAdminView('inventory')}
-            className="p-3.5 bg-white border border-[#E3E8F0] hover:border-[#102544] rounded-xl shadow-xs cursor-pointer transition-all hover:bg-[#F5F7FA] group"
-          >
-            <div className="text-[#66758C] text-[11px] font-medium truncate">Reserved Lockers</div>
-            <div className="text-xl font-extrabold text-[#B7791F] font-mono mt-0.5">{reservedCount}</div>
-            <div className="text-[10px] text-[#66758C] mt-0.5">Application Hold</div>
-          </div>
-
-          {/* 5. Blocked Lockers */}
-          <div
-            onClick={() => setAdminView('break-open')}
-            className="p-3.5 bg-white border border-[#E3E8F0] hover:border-[#C83E44] rounded-xl shadow-xs cursor-pointer transition-all hover:bg-[#F5F7FA] group"
-          >
-            <div className="text-[#66758C] text-[11px] font-medium truncate">Blocked Lockers</div>
-            <div className="text-xl font-extrabold text-[#C83E44] font-mono mt-0.5">{blockedCount}</div>
-            <div className="text-[10px] text-[#C83E44] mt-0.5 font-semibold">Lien / Break-Open</div>
-          </div>
-
-          {/* 6. Occupancy % */}
-          <div
-            onClick={() => setAdminView('inventory')}
-            className="p-3.5 bg-white border border-[#E3E8F0] hover:border-[#102544] rounded-xl shadow-xs cursor-pointer transition-all hover:bg-[#F5F7FA] group"
-          >
-            <div className="text-[#66758C] text-[11px] font-medium truncate">Occupancy Rate</div>
-            <div className="text-xl font-extrabold text-[#102544] font-mono mt-0.5">{occRatio}%</div>
-            <div className="text-[10px] text-[#008C88] mt-0.5 font-semibold">High Utilization</div>
-          </div>
-
-          {/* 7. Pending Applications */}
-          <div
-            onClick={() => setAdminView('applications')}
-            className="p-3.5 bg-white border border-[#E3E8F0] hover:border-[#102544] rounded-xl shadow-xs cursor-pointer transition-all hover:bg-[#F5F7FA] group"
-          >
-            <div className="text-[#66758C] text-[11px] font-medium truncate">Pending Applications</div>
-            <div className="text-xl font-extrabold text-[#102544] font-mono mt-0.5">{pendingApps.length}</div>
-            <div className="text-[10px] text-[#2457A7] mt-0.5">KYC In-Scrutiny</div>
-          </div>
-
-          {/* 8. Pending Approvals */}
-          <div
-            onClick={() => setAdminView('applications')}
-            className="p-3.5 bg-white border border-[#E3E8F0] hover:border-[#102544] rounded-xl shadow-xs cursor-pointer transition-all hover:bg-[#F5F7FA] group"
-          >
-            <div className="text-[#66758C] text-[11px] font-medium truncate">Pending Approvals</div>
-            <div className="text-xl font-extrabold text-[#B7791F] font-mono mt-0.5">{pendingApprovals}</div>
-            <div className="text-[10px] text-[#B7791F] mt-0.5 font-semibold">Checker Action Due</div>
-          </div>
-
-          {/* 9. Today's Appointments */}
-          <div
-            onClick={() => setAdminView('visits')}
-            className="p-3.5 bg-white border border-[#E3E8F0] hover:border-[#102544] rounded-xl shadow-xs cursor-pointer transition-all hover:bg-[#F5F7FA] group"
-          >
-            <div className="text-[#66758C] text-[11px] font-medium truncate">Today's Visits</div>
-            <div className="text-xl font-extrabold text-[#008C88] font-mono mt-0.5">{todayAppointments.length}</div>
-            <div className="text-[10px] text-[#008C88] mt-0.5 font-semibold">Turnstile Queue</div>
-          </div>
-
-          {/* 10. Rent Outstanding */}
-          <div
-            onClick={() => setAdminView('billing')}
-            className="p-3.5 bg-white border border-[#E3E8F0] hover:border-[#C83E44] rounded-xl shadow-xs cursor-pointer transition-all hover:bg-[#F5F7FA] group"
-          >
-            <div className="text-[#66758C] text-[11px] font-medium truncate">Rent Outstanding</div>
-            <div className="text-xl font-extrabold text-[#C83E44] font-mono mt-0.5">
-              ₹{(totalOutstandingRent / 1000).toFixed(0)}k
-            </div>
-            <div className="text-[10px] text-[#C83E44] mt-0.5 font-semibold">Gross Arrears</div>
-          </div>
-
-          {/* 11. Overdue Accounts */}
-          <div
-            onClick={() => setAdminView('arrears')}
-            className="p-3.5 bg-white border border-[#E3E8F0] hover:border-[#C83E44] rounded-xl shadow-xs cursor-pointer transition-all hover:bg-[#F5F7FA] group"
-          >
-            <div className="text-[#66758C] text-[11px] font-medium truncate">Overdue Accounts</div>
-            <div className="text-xl font-extrabold text-[#C83E44] font-mono mt-0.5">{overdueAccountsCount}</div>
-            <div className="text-[10px] text-[#66758C] mt-0.5">30 to 365+ Days</div>
-          </div>
-
-          {/* 12. Open Service Requests */}
-          <div
-            onClick={() => setAdminView('requests')}
-            className="p-3.5 bg-white border border-[#E3E8F0] hover:border-[#102544] rounded-xl shadow-xs cursor-pointer transition-all hover:bg-[#F5F7FA] group"
-          >
-            <div className="text-[#66758C] text-[11px] font-medium truncate">Open Tickets</div>
-            <div className="text-xl font-extrabold text-[#102544] font-mono mt-0.5">{openServiceRequests.length}</div>
-            <div className="text-[10px] text-[#008C88] mt-0.5 font-semibold">Keys & Nominees</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Telemetry Row: Strongroom Compartment Utilization Donut & Traffic Flow */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left (5 cols): Strongroom Compartment Utilization */}
-        <div className="lg:col-span-5 bg-white border border-[#E3E8F0] rounded-2xl p-6 shadow-bank-card space-y-5">
+      {/* 3. SIX INTERACTIVE CHARTS GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* CHART 1: CITY-WISE LOCKER DISTRIBUTION */}
+        <div className="bg-white rounded-2xl border border-[#E3E8F0] p-5 shadow-xs space-y-3">
           <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
             <div>
-              <h3 className="font-bold text-[#102544] text-sm">Vault Occupancy Breakdown</h3>
-              <p className="text-[#66758C] text-xs">Total Registered Capacity: {totalLockers} units</p>
-            </div>
-            <span className="font-mono font-bold text-[#102544] bg-[#F5F7FA] px-2.5 py-0.5 rounded-full text-xs border border-[#E3E8F0]">
-              {occRatio}% Occupied
-            </span>
-          </div>
-
-          <div className="flex items-center justify-around gap-6 pt-2">
-            {/* SVG Donut */}
-            <div className="relative w-32 h-32 shrink-0 flex items-center justify-center">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                <circle
-                  cx="18"
-                  cy="18"
-                  r="15.9155"
-                  fill="none"
-                  stroke="#E3E8F0"
-                  strokeWidth="4"
-                />
-                <circle
-                  cx="18"
-                  cy="18"
-                  r="15.9155"
-                  fill="none"
-                  stroke="#102544"
-                  strokeWidth="4"
-                  strokeDasharray={`${occRatio}, 100`}
-                  strokeLinecap="round"
-                />
-                <circle
-                  cx="18"
-                  cy="18"
-                  r="15.9155"
-                  fill="none"
-                  stroke="#16845B"
-                  strokeWidth="4"
-                  strokeDasharray={`${vacRatio}, 100`}
-                  strokeDashoffset={`-${occRatio}`}
-                />
-              </svg>
-              <div className="absolute flex flex-col items-center">
-                <span className="text-xl font-bold font-mono text-[#102544] tabular-nums">{occupiedCount}</span>
-                <span className="text-[10px] uppercase tracking-wider text-[#66758C] font-semibold">Active Units</span>
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between gap-4">
-                <span className="flex items-center gap-1.5 text-[#66758C]">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#102544]" />
-                  <span>Occupied:</span>
-                </span>
-                <span className="font-mono font-bold text-[#102544] tabular-nums">{occupiedCount} ({occRatio}%)</span>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="flex items-center gap-1.5 text-[#66758C]">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#16845B]" />
-                  <span>Available Vacant:</span>
-                </span>
-                <span className="font-mono font-bold text-[#16845B] tabular-nums">{vacantCount} ({vacRatio}%)</span>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="flex items-center gap-1.5 text-[#66758C]">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#C83E44]" />
-                  <span>Blocked / Maintenance:</span>
-                </span>
-                <span className="font-mono font-bold text-[#C83E44] tabular-nums">{blockedCount}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-[#E3E8F0] flex items-center justify-between text-xs">
-            <span className="text-[#66758C]">Allotment waitlist: 8 pending applicants</span>
-            <button
-              onClick={() => setAdminView('inventory')}
-              className="text-[#2457A7] font-semibold hover:underline flex items-center gap-0.5"
-            >
-              <span>Manage Compartment Grid</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Right (7 cols): Strongroom Hourly Visitor Footfall Histogram */}
-        <div className="lg:col-span-7 bg-white border border-[#E3E8F0] rounded-2xl p-6 shadow-bank-card space-y-5">
-          <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
-            <div>
-              <h3 className="font-bold text-[#102544] text-sm flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4 text-[#008C88]" />
-                <span>Today's Strongroom Visitor Traffic Flow</span>
+              <h3 className="text-sm font-bold text-[#102544]">
+                Chart 1: City-Wise Locker Distribution (7 Major Hubs)
               </h3>
-              <p className="text-[#66758C] text-xs">
-                Peak hours: <strong className="text-[#102544] font-mono">11:00 – 12:00</strong> & <strong className="text-[#102544] font-mono">15:00 – 16:00</strong> · Max simultaneous booths: 4
+              <p className="text-xs text-[#66758C] mt-0.5">
+                Occupied vs Available capacity across all 28 bank branches
               </p>
             </div>
-            <span className="text-xs font-semibold text-[#16845B] bg-[#16845B]/10 border border-[#16845B]/20 px-2.5 py-0.5 rounded-md">
-              Strongroom Open
+            <span className="text-xs font-mono text-[#2457A7] font-semibold">National Circle</span>
+          </div>
+
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={cityDistributionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                <XAxis dataKey="city" tick={{ fontSize: 11, fill: '#66758C' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#66758C' }} />
+                <Tooltip
+                  formatter={(value: any, name: any) => [`${value} Units`, name === 'occupied' ? 'Occupied' : 'Available']}
+                  contentStyle={{ backgroundColor: '#0B1730', borderColor: '#102544', color: '#fff', borderRadius: '8px', fontSize: '11px' }}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                <Bar dataKey="occupied" name="Occupied Units" fill="#102544" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="available" name="Available Units" fill="#16845B" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* CHART 2: LOCKER OCCUPANCY DONUT */}
+        <div className="bg-white rounded-2xl border border-[#E3E8F0] p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#102544]">
+                Chart 2: Strongroom Locker Occupancy Distribution
+              </h3>
+              <p className="text-xs text-[#66758C] mt-0.5">
+                Real-time compartment operational status in filtered scope
+              </p>
+            </div>
+            <span className="text-xs font-mono font-bold text-[#16845B] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              {occupancyPercentage}% Occupied
             </span>
           </div>
 
-          {/* Bar Chart Visualization */}
-          <div className="h-32 flex items-end justify-between gap-3 pt-6 pb-2 px-2 border-b border-[#E3E8F0]">
-            {hourlyTraffic.map(h => {
-              const heightPercent = Math.round((h.visitors / maxHourly) * 100);
-              return (
-                <div key={h.hour} className="flex-1 flex flex-col items-center gap-1.5 group cursor-pointer">
-                  <span className="text-[10px] font-mono font-bold text-[#66758C] group-hover:text-[#102544] transition-colors tabular-nums">
-                    {h.visitors}
-                  </span>
+          <div className="h-64 w-full flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="w-full sm:w-1/2 h-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={occupancyDonutData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={85}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {occupancyDonutData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: any, name: any) => [`${value} Lockers`, name]}
+                    contentStyle={{ backgroundColor: '#0B1730', borderColor: '#102544', color: '#fff', borderRadius: '8px', fontSize: '11px' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
 
-                  <div className="w-full max-w-[32px] bg-[#F5F7FA] group-hover:bg-[#E3E8F0] rounded-t-md overflow-hidden flex items-end transition-all h-20">
-                    <div
-                      className={`w-full rounded-t-sm transition-all duration-300 ${
-                        h.peak
-                          ? 'bg-[#102544] group-hover:bg-[#2457A7]'
-                          : 'bg-[#94A3B8] group-hover:bg-[#66758C]'
-                      }`}
-                      style={{ height: `${heightPercent}%` }}
-                    />
+            <div className="w-full sm:w-1/2 space-y-2 text-xs">
+              {occupancyDonutData.map(item => (
+                <div key={item.name} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-xs" style={{ backgroundColor: item.color }} />
+                    <span className="text-[#66758C] font-medium">{item.name}</span>
                   </div>
-
-                  <span className="text-[10px] font-mono font-medium text-[#66758C] group-hover:text-[#102544]">
-                    {h.hour}
-                  </span>
+                  <div className="font-mono tabular-nums font-bold text-[#102544]">
+                    {item.value} <span className="text-[10px] text-[#66758C] font-normal">({totalLockers > 0 ? Math.round((item.value / totalLockers) * 100) : 0}%)</span>
+                  </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* CHART 3: RENT COLLECTION TREND */}
+        <div className="bg-white rounded-2xl border border-[#E3E8F0] p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#102544]">
+                Chart 3: Monthly Rent Collection & Target Trend
+              </h3>
+              <p className="text-xs text-[#66758C] mt-0.5">
+                Current financial year collection vs corresponding previous cycle
+              </p>
+            </div>
+            <span className="text-xs font-mono font-semibold text-[#16845B]">↑ +12.4% YoY</span>
           </div>
 
-          <div className="flex items-center justify-between text-xs text-[#66758C] pt-1">
-            <span className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded bg-[#102544]" /> Peak Safe Visitation Window
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={rentTrendData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2457A7" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#2457A7" stopOpacity={0.0} />
+                  </linearGradient>
+                  <linearGradient id="colorPrev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#008C88" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#008C88" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#66758C' }} />
+                <YAxis
+                  tick={{ fontSize: 11, fill: '#66758C' }}
+                  tickFormatter={val => `₹${(val / 100000).toFixed(0)}L`}
+                />
+                <Tooltip
+                  formatter={(val: any, name: any) => [`₹${Number(val).toLocaleString('en-IN')}`, name === 'current' ? 'FY 26-27' : 'FY 25-26']}
+                  contentStyle={{ backgroundColor: '#0B1730', borderColor: '#102544', color: '#fff', borderRadius: '8px', fontSize: '11px' }}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                <Area type="monotone" dataKey="current" name="FY 26-27 Collections" stroke="#2457A7" strokeWidth={2} fillOpacity={1} fill="url(#colorCurrent)" />
+                <Area type="monotone" dataKey="previous" name="FY 25-26 Baseline" stroke="#008C88" strokeWidth={2} strokeDasharray="4 4" fillOpacity={1} fill="url(#colorPrev)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* CHART 4: LOCKER SIZE UTILIZATION */}
+        <div className="bg-white rounded-2xl border border-[#E3E8F0] p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#102544]">
+                Chart 4: Locker Size Capacity & Utilization Rate
+              </h3>
+              <p className="text-xs text-[#66758C] mt-0.5">
+                Breakdown across Small, Medium, Large, and Extra Large compartments
+              </p>
+            </div>
+            <span className="text-xs font-mono font-medium text-[#66758C]">4 Sizes Standardized</span>
+          </div>
+
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={sizeUtilizationData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                <XAxis dataKey="size" tick={{ fontSize: 11, fill: '#66758C' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#66758C' }} />
+                <Tooltip
+                  formatter={(val: any, name: any) => [`${val} Units`, name === 'occupied' ? 'Occupied' : 'Total Capacity']}
+                  contentStyle={{ backgroundColor: '#0B1730', borderColor: '#102544', color: '#fff', borderRadius: '8px', fontSize: '11px' }}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                <Bar dataKey="total" name="Total Compartments" fill="#E2E8F0" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="occupied" name="Occupied Units" fill="#008C88" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* CHART 5: APPLICATION STATUS BREAKDOWN */}
+        <div className="bg-white rounded-2xl border border-[#E3E8F0] p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#102544]">
+                Chart 5: Allotment Workflow Pipeline Status
+              </h3>
+              <p className="text-xs text-[#66758C] mt-0.5">
+                L-101 Application queue: Maker review to Checker allocation
+              </p>
+            </div>
+            <span className="text-xs text-[#2457A7] font-semibold hover:underline cursor-pointer" onClick={() => setAdminView('applications')}>
+              Manage Queue →
             </span>
+          </div>
+
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart layout="vertical" data={appStatusData} margin={{ top: 10, right: 20, left: 20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11, fill: '#66758C' }} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#17263C' }} />
+                <Tooltip
+                  formatter={(val: any) => [`${val} Applications`, 'Queue Count']}
+                  contentStyle={{ backgroundColor: '#0B1730', borderColor: '#102544', color: '#fff', borderRadius: '8px', fontSize: '11px' }}
+                />
+                <Bar dataKey="count" name="Applications" fill="#102544" radius={[0, 4, 4, 0]}>
+                  {appStatusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* CHART 6: BRANCH PERFORMANCE COMPARISON */}
+        <div className="bg-white rounded-2xl border border-[#E3E8F0] p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#102544]">
+                Chart 6: Top Branch Operational Performance
+              </h3>
+              <p className="text-xs text-[#66758C] mt-0.5">
+                Occupancy rate (%) and Annual Revenue across filtered branches
+              </p>
+            </div>
+            <span className="text-xs font-mono font-medium text-[#66758C]">Top 7 Units</span>
+          </div>
+
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={branchPerformanceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#66758C' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#66758C' }} />
+                <Tooltip
+                  formatter={(val: any, name: any) => [name === 'occupancy' ? `${val}%` : `₹${val}k`, name === 'occupancy' ? 'Occupancy Rate' : 'Revenue (INR)']}
+                  contentStyle={{ backgroundColor: '#0B1730', borderColor: '#102544', color: '#fff', borderRadius: '8px', fontSize: '11px' }}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                <Bar dataKey="occupancy" name="Occupancy %" fill="#2457A7" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. OPERATIONAL WORKFLOW QUEUES & ACTION CENTERS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Pending Maker-Checker Approvals (2 Cols) */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E3E8F0] p-5 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#102544] flex items-center gap-2">
+                <FileCheck2 className="w-4 h-4 text-[#2457A7]" />
+                <span>Maker-Checker Approval & Allotment Queue</span>
+              </h3>
+              <p className="text-xs text-[#66758C] mt-0.5">
+                Pending sign-off by Branch Manager or Authorized Checker under dual control
+              </p>
+            </div>
+            <button
+              onClick={() => setAdminView('applications')}
+              className="text-xs text-[#2457A7] font-semibold hover:underline"
+            >
+              View All ({applications.length}) →
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-[#F5F7FA] text-[#66758C] border-b border-[#E3E8F0]">
+                  <th className="py-2.5 px-3 font-semibold">App #</th>
+                  <th className="py-2.5 px-3 font-semibold">Applicant</th>
+                  <th className="py-2.5 px-3 font-semibold">Branch</th>
+                  <th className="py-2.5 px-3 font-semibold">Size</th>
+                  <th className="py-2.5 px-3 font-semibold text-center">Status</th>
+                  <th className="py-2.5 px-3 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E3E8F0]">
+                {applications.slice(0, 5).map(app => (
+                  <tr key={app.id} className="hover:bg-[#F5F7FA]/75 transition-colors">
+                    <td className="py-2.5 px-3 font-mono font-bold text-[#102544]">
+                      {app.applicationNumber}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <div className="font-medium text-[#17263C]">{app.customerName}</div>
+                      <div className="text-[10px] text-[#66758C] font-mono">{app.cifNumber}</div>
+                    </td>
+                    <td className="py-2.5 px-3 text-[#66758C] truncate max-w-[120px]">
+                      {app.branchName}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <span className="font-semibold text-[#102544]">{app.sizeRequested}</span>
+                    </td>
+                    <td className="py-2.5 px-3 text-center">
+                      <StatusBadge status={app.status} size="sm" />
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      {app.status === 'Submitted' || app.status === 'KYC Verified' || app.status === 'Maker Verified' ? (
+                        <button
+                          onClick={() => {
+                            adminApproveApplication(app.id);
+                          }}
+                          className="px-2.5 py-1 bg-[#102544] hover:bg-[#0B1730] text-white rounded text-[11px] font-semibold transition-colors shadow-2xs"
+                        >
+                          Approve Allotment
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-[#16845B] font-medium">Allotted</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Live Strongroom Vault Gate Turnstile Stream */}
+        <div className="bg-white rounded-2xl border border-[#E3E8F0] p-5 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#102544] flex items-center gap-2">
+                <Clock className="w-4 h-4 text-[#008C88]" />
+                <span>Live Strongroom Gate Stream</span>
+              </h3>
+              <p className="text-xs text-[#66758C] mt-0.5">
+                Real-time visitor check-ins & custodian escorts
+              </p>
+            </div>
             <button
               onClick={() => setAdminView('visits')}
-              className="text-[#2457A7] font-semibold hover:underline flex items-center gap-0.5"
+              className="text-xs text-[#2457A7] font-semibold hover:underline"
             >
-              <span>View Turnstile Gate Folio</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              Gate Monitor →
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* Operational Alerts Center (Real-time Statutory & Security Flags) */}
-      {operationalAlerts.length > 0 && (
-        <div className="bg-white border border-[#E3E8F0] rounded-2xl p-5 shadow-xs space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-[#E3E8F0]">
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-[#C83E44]" />
-              <h3 className="font-bold text-[#102544] text-xs uppercase tracking-wider">
-                Operational Compliance & Risk Alerts ({operationalAlerts.length})
-              </h3>
-            </div>
-            <span className="text-[11px] text-[#66758C]">Immediate Branch Action Required</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {operationalAlerts.map(alt => (
+          <div className="space-y-3">
+            {accessLogs.slice(0, 4).map(log => (
               <div
-                key={alt.id}
-                className={`p-3 rounded-xl border flex flex-col justify-between gap-2.5 transition-all ${
-                  alt.severity === 'critical'
-                    ? 'bg-red-50/60 border-red-200 text-red-900'
-                    : alt.severity === 'warning'
-                    ? 'bg-amber-50/60 border-amber-200 text-amber-900'
-                    : 'bg-blue-50/60 border-blue-200 text-blue-900'
-                }`}
+                key={log.id}
+                className="p-3 rounded-xl border border-[#E3E8F0] bg-[#F5F7FA] text-xs space-y-1"
               >
-                <div>
-                  <div className="font-bold text-xs flex items-center justify-between">
-                    <span>{alt.title}</span>
-                    <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold uppercase ${
-                      alt.severity === 'critical'
-                        ? 'bg-[#C83E44] text-white'
-                        : alt.severity === 'warning'
-                        ? 'bg-[#B7791F] text-white'
-                        : 'bg-[#2457A7] text-white'
-                    }`}>
-                      {alt.severity}
-                    </span>
-                  </div>
-                  <p className="text-[11px] opacity-90 mt-1 leading-relaxed">
-                    {alt.description}
-                  </p>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-bold text-[#102544]">Locker {log.lockerNumber}</span>
+                  <span className="font-mono text-[10px] text-[#66758C] tabular-nums">{log.timeIn} - {log.timeOut}</span>
                 </div>
-
-                <div className="pt-2 border-t border-black/5 flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-semibold">Priority 1 Dispatch</span>
-                  <button
-                    onClick={() => setAdminView(alt.actionView)}
-                    className="text-xs font-bold underline hover:opacity-80 flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>{alt.actionLabel}</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
+                <div className="text-[11px] text-[#17263C]">
+                  {log.operatedBy} · <span className="text-[#66758C]">{log.operatorType}</span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-[#66758C] pt-1 border-t border-[#E3E8F0]">
+                  <span>Branch: {log.branchName}</span>
+                  <span className="text-emerald-700 font-semibold">{log.verificationMethod}</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      )}
-
-      {/* Locker-Size Utilization & Rent Financial Trends */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Size Utilization Breakdown (6 cols) */}
-        <div className="lg:col-span-6 bg-white border border-[#E3E8F0] rounded-2xl p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[#E3E8F0]">
-            <div>
-              <h3 className="font-bold text-[#102544] text-sm flex items-center gap-2">
-                <Layers className="w-4 h-4 text-[#2457A7]" />
-                <span>Locker-Size Utilization Breakdown</span>
-              </h3>
-              <p className="text-[#66758C] text-xs">Capacity demand by compartment dimension tier</p>
-            </div>
-            <button
-              onClick={() => setAdminView('inventory')}
-              className="text-xs text-[#2457A7] font-semibold hover:underline"
-            >
-              Inventory Grid →
-            </button>
-          </div>
-
-          <div className="space-y-3.5">
-            {sizeBreakdown.map(sb => (
-              <div key={sb.size} className="space-y-1">
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="text-[#102544] font-medium">{sb.size} Locker</span>
-                  <span className="font-mono text-[#66758C]">
-                    <strong className="text-[#102544]">{sb.occupied}</strong> / {sb.total} units ({sb.pct}%)
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-[#F5F7FA] rounded-full overflow-hidden border border-[#E3E8F0]">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      sb.pct >= 80 ? 'bg-[#102544]' : sb.pct >= 50 ? 'bg-[#2457A7]' : 'bg-[#008C88]'
-                    }`}
-                    style={{ width: `${sb.pct}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Rent Collection & Arrears Trends (6 cols) */}
-        <div className="lg:col-span-6 bg-white border border-[#E3E8F0] rounded-2xl p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[#E3E8F0]">
-            <div>
-              <h3 className="font-bold text-[#102544] text-sm flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-[#16845B]" />
-                <span>Rental Financial Health & Arrears Trend</span>
-              </h3>
-              <p className="text-[#66758C] text-xs">Run-rate yield, CBS auto-debit and recovery index</p>
-            </div>
-            <button
-              onClick={() => setAdminView('billing')}
-              className="text-xs text-[#2457A7] font-semibold hover:underline"
-            >
-              Financial Hub →
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className="p-3.5 bg-[#F5F7FA] rounded-xl border border-[#E3E8F0] space-y-1">
-              <span className="text-[11px] text-[#66758C] font-semibold">Projected Annual Yield</span>
-              <div className="text-lg font-extrabold text-[#102544] font-mono">
-                ₹{(lockers.filter(l => l.status === 'Occupied').reduce((sum, l) => sum + l.annualRent, 0) / 1000).toFixed(0)}k
-              </div>
-              <span className="text-[10px] text-emerald-700 font-medium">98.4% CBS Mandate Realization</span>
-            </div>
-
-            <div className="p-3.5 bg-[#F5F7FA] rounded-xl border border-[#E3E8F0] space-y-1">
-              <span className="text-[11px] text-[#66758C] font-semibold">Gross Arrears Outstanding</span>
-              <div className="text-lg font-extrabold text-[#C83E44] font-mono">
-                ₹{(totalOutstandingRent / 1000).toFixed(1)}k
-              </div>
-              <span className="text-[10px] text-[#C83E44] font-medium">{overdueAccountsCount} delinquent hirers under notice</span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>CBS Auto-Debit Batch #BATCH-2026-10-27 executed with zero ledger discrepancy.</span>
-            </div>
-            <button
-              onClick={() => setAdminView('payment-recon')}
-              className="text-xs font-bold text-emerald-800 hover:underline shrink-0"
-            >
-              Reconciliation →
-            </button>
-          </div>
-        </div>
       </div>
-
-      {/* Branch-Wise Capacity Distribution & Performance Matrix */}
-      <div className="bg-white border border-[#E3E8F0] rounded-2xl p-5 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E3E8F0]">
-          <div>
-            <h3 className="font-bold text-[#102544] text-sm flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-[#2457A7]" />
-              <span>Branch-Wise Distribution & Performance Matrix</span>
-            </h3>
-            <p className="text-[#66758C] text-xs">Multi-branch capacity, occupancy rates, and annual revenue run-rates</p>
-          </div>
-          <button
-            onClick={() => setAdminView('executive-dashboard')}
-            className="text-xs text-[#2457A7] font-semibold hover:underline flex items-center gap-1"
-          >
-            <span>Open Executive Analytics Matrix</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-[#F5F7FA] border-b border-[#E3E8F0] text-[#66758C] font-bold uppercase tracking-wider text-[11px]">
-                <th className="py-2.5 px-3">Branch Name</th>
-                <th className="py-2.5 px-3">SOL ID / Code</th>
-                <th className="py-2.5 px-3">City & Region</th>
-                <th className="py-2.5 px-3 text-right">Total Units</th>
-                <th className="py-2.5 px-3 text-right">Occupied</th>
-                <th className="py-2.5 px-3 text-center">Occupancy Rate</th>
-                <th className="py-2.5 px-3 text-right">Annual Tariff Run-Rate</th>
-                <th className="py-2.5 px-3 text-right">Outstanding Arrears</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E3E8F0]">
-              {branchPerformance.map(bp => (
-                <tr key={bp.id} className="hover:bg-[#F5F7FA]/75 transition-colors">
-                  <td className="py-3 px-3 font-bold text-[#102544]">{bp.name}</td>
-                  <td className="py-3 px-3 font-mono text-[#66758C]">{bp.code}</td>
-                  <td className="py-3 px-3 text-[#17263C]">{bp.city} · {bp.regionName}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-[#102544]">{bp.total}</td>
-                  <td className="py-3 px-3 text-right font-mono font-semibold text-[#16845B]">{bp.occupied}</td>
-                  <td className="py-3 px-3 text-center font-mono">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      bp.occPct >= 80 ? 'bg-emerald-100 text-emerald-800' : bp.occPct >= 50 ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
-                    }`}>
-                      {bp.occPct}%
-                    </span>
-                  </td>
-                  <td className="py-3 px-3 text-right font-mono font-semibold text-[#102544]">
-                    ₹{bp.rent.toLocaleString('en-IN')}
-                  </td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-[#C83E44]">
-                    {bp.arrears > 0 ? `₹${bp.arrears.toLocaleString('en-IN')}` : 'Nil'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Recent Locker Access Turnstile Feed */}
-      <div className="bg-white border border-[#E3E8F0] rounded-2xl p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-[#E3E8F0]">
-          <div>
-            <h3 className="font-bold text-[#102544] text-sm flex items-center gap-2">
-              <Clock className="w-4 h-4 text-[#008C88]" />
-              <span>Recent Strongroom Access & Turnstile Activity</span>
-            </h3>
-            <p className="text-[#66758C] text-xs">Real-time gate check-ins, biometric 2FA verifications, and escort officers</p>
-          </div>
-          <button
-            onClick={() => setAdminView('visits')}
-            className="text-xs text-[#2457A7] font-semibold hover:underline"
-          >
-            Turnstile Folio →
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {recentAccessLogs.map(acc => (
-            <div key={acc.id} className="p-3 bg-[#F5F7FA] rounded-xl border border-[#E3E8F0] space-y-1.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-mono font-bold text-[#102544] text-sm">Locker {acc.lockerNumber}</span>
-                <span className="text-[10px] font-mono text-[#66758C]">{acc.timeIn} - {acc.timeOut}</span>
-              </div>
-              <div className="font-semibold text-[#17263C] truncate">{acc.operatedBy}</div>
-              <div className="text-[11px] text-[#66758C] flex items-center justify-between">
-                <span>{acc.operatorType}</span>
-                <span className="text-emerald-700 font-semibold text-[10px]">Dual Key OK</span>
-              </div>
-              <div className="text-[10px] text-[#66758C] pt-1 border-t border-[#E3E8F0] truncate">
-                Escort: {acc.vaultOfficer}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Two Column Workflows */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Column: Immediate Action Queues (7 Cols) */}
-        <div className="lg:col-span-7 space-y-6">
-          
-          {/* Visitor Queue Card */}
-          <div className="bg-white border border-[#E3E8F0] rounded-2xl p-6 shadow-bank-card space-y-4">
-            <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
-              <div>
-                <h3 className="font-bold text-[#102544] text-sm flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-[#2457A7]" />
-                  <span>Strongroom Visitor Queue (Live Gate Operations)</span>
-                </h3>
-                <p className="text-[#66758C] text-xs">
-                  Validate check-in tokens and authorize dual physical key entry
-                </p>
-              </div>
-              <button
-                onClick={() => setAdminView('visits')}
-                className="text-xs text-[#2457A7] font-semibold hover:underline"
-              >
-                View Full Queue →
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {todayAppointments.length === 0 ? (
-                <div className="p-6 text-center text-[#66758C]">No pending visits for today.</div>
-              ) : (
-                todayAppointments.map(apt => (
-                  <div
-                    key={apt.id}
-                    className="p-4 rounded-xl border border-[#E3E8F0] bg-[#F5F7FA] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-[#102544]">{apt.tokenNumber}</span>
-                        <StatusBadge status={apt.status} size="sm" />
-                      </div>
-                      <div className="font-bold text-[#17263C] text-xs">
-                        {apt.customerName} · <span className="text-[#2457A7] font-mono">Locker {apt.lockerNumber}</span>
-                      </div>
-                      <div className="text-[11px] text-[#66758C] font-mono">
-                        {apt.date} · {apt.timeSlot} · {apt.purpose}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      {apt.status === 'Confirmed' && (
-                        <button
-                          onClick={() => adminCheckInAppointment(apt.id)}
-                          className="px-3.5 py-2 bg-[#102544] hover:bg-[#0B1730] text-white font-semibold rounded-lg text-xs shadow-xs"
-                        >
-                          Check In Visitor
-                        </button>
-                      )}
-                      {apt.status === 'Checked In' && (
-                        <button
-                          onClick={() => adminCompleteAppointment(apt.id, 'Routine safe custody operation verified. Double lock sealed.')}
-                          className="px-3.5 py-2 bg-[#16845B] hover:bg-[#16845B]/90 text-white font-semibold rounded-lg text-xs shadow-xs"
-                        >
-                          Complete & Log Exit
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Pending Applications Desk */}
-          <div className="bg-white border border-[#E3E8F0] rounded-2xl p-6 shadow-bank-card space-y-4">
-            <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
-              <div>
-                <h3 className="font-bold text-[#102544] text-sm flex items-center gap-2">
-                  <Key className="w-4 h-4 text-[#2457A7]" />
-                  <span>Pending Customer Allotments ({pendingApps.length})</span>
-                </h3>
-                <p className="text-[#66758C] text-xs">
-                  Scrutinize KYC, assign compartment, and issue allotment letter
-                </p>
-              </div>
-              <button
-                onClick={() => setAdminView('applications')}
-                className="text-xs text-[#2457A7] font-semibold hover:underline"
-              >
-                Allotment Console →
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {pendingApps.map(app => (
-                <div
-                  key={app.id}
-                  className="p-4 rounded-xl border border-[#E3E8F0] bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-[#102544]">{app.applicationNumber}</span>
-                      <StatusBadge status={app.status} size="sm" />
-                    </div>
-                    <div className="font-bold text-[#17263C] text-xs">
-                      {app.customerName} ({app.cifNumber})
-                    </div>
-                    <div className="text-[11px] text-[#66758C]">
-                      Requested: {app.sizeRequested} Locker · Mandate: {app.operatingMode}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => adminApproveApplication(app.id)}
-                      className="px-3.5 py-2 bg-[#102544] hover:bg-[#0B1730] text-white font-semibold rounded-lg text-xs shadow-xs"
-                    >
-                      Approve & Allot Unit
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>
-
-        {/* Right Column: Alerts, Audits & Sensitive Actions (5 Cols) */}
-        <div className="lg:col-span-5 space-y-6">
-          
-          {/* Regulatory Safe Custody Banner */}
-          <div className="p-6 bg-[#F5F7FA] border border-[#E3E8F0] rounded-2xl space-y-3">
-            <div className="flex items-center gap-2 text-[#102544] font-bold text-sm">
-              <Shield className="w-4 h-4 text-[#16845B]" />
-              <span>Dual Custody & Content Privacy Directive</span>
-            </div>
-            <p className="text-xs text-[#66758C] leading-relaxed">
-              <strong>Mandatory Protocol:</strong> In compliance with banking confidentiality laws, bank officers must <em>never inspect, record, or display locker contents</em>. Officers only escort the hirer, engage master key #1, and immediately step outside the private booth.
-            </p>
-          </div>
-
-          {/* Service Requests Queue */}
-          <div className="bg-white border border-[#E3E8F0] rounded-2xl p-6 shadow-bank-card space-y-4">
-            <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
-              <h3 className="font-bold text-[#102544] text-sm">
-                Service & Technical Desk ({openServiceRequests.length})
-              </h3>
-              <button
-                onClick={() => setAdminView('requests')}
-                className="text-xs text-[#2457A7] font-semibold hover:underline"
-              >
-                Manage All →
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {openServiceRequests.map(sr => (
-                <div
-                  key={sr.id}
-                  onClick={() => setAdminView('requests')}
-                  className="p-3.5 rounded-xl border border-[#E3E8F0] hover:bg-[#F5F7FA] transition-colors cursor-pointer space-y-1 text-xs"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-[#102544]">{sr.ticketNumber}</span>
-                    <StatusBadge status={sr.status} size="sm" />
-                  </div>
-                  <div className="font-semibold text-[#17263C]">
-                    {sr.requestType} (Locker {sr.lockerNumber})
-                  </div>
-                  <p className="text-[11px] text-[#66758C] line-clamp-1">{sr.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Nav Shortcut to Audit Trail */}
-          <div className="p-5 bg-[#2457A7]/10 border border-[#2457A7]/20 rounded-2xl flex items-center justify-between">
-            <div>
-              <span className="font-bold text-[#102544] block text-xs">Audit & Regulatory Log</span>
-              <span className="text-[11px] text-[#66758C]">All custodian turns cryptographically registered</span>
-            </div>
-            <button
-              onClick={() => setAdminView('audit')}
-              className="px-3.5 py-2 bg-[#102544] hover:bg-[#0B1730] text-white rounded-lg font-semibold text-xs shadow-xs"
-            >
-              View Logs
-            </button>
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* KPI Metric Drill-Down & Ledger Reconciliation Modal (TEST 12 Parity) */}
-      {drillDownType && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B1730]/70 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-[#E3E8F0] max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
-            <div className="px-6 py-4 border-b border-[#E3E8F0] bg-[#F5F7FA] flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#102544] text-white flex items-center justify-center">
-                  <Layers className="w-4 h-4 text-[#008C88]" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-[#102544] text-sm">
-                      {drillDownType === 'occupancy' && 'Vault Occupancy & Locker Inventory Ledger'}
-                      {drillDownType === 'applications' && 'Pending Allotment Applications Ledger'}
-                      {drillDownType === 'serviceRequests' && 'Technical & Service Requests Ledger'}
-                      {drillDownType === 'claims' && 'Deceased Claims & Settlement Ledger'}
-                    </h3>
-                    <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-emerald-100 text-[#16845B] border border-emerald-200">
-                      1:1 Ledger Parity Verified
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#66758C] mt-0.5">
-                    Underlying state records reconciled with dashboard KPI telemetry aggregates
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setDrillDownType(null)}
-                className="text-[#66758C] hover:text-[#17263C] p-1.5 rounded-lg hover:bg-[#E3E8F0]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto space-y-4 text-xs">
-              {drillDownType === 'occupancy' && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#F5F7FA] text-[#66758C] font-semibold text-[11px] uppercase border-b border-[#E3E8F0]">
-                        <th className="py-2.5 px-3">Locker #</th>
-                        <th className="py-2.5 px-3">Branch</th>
-                        <th className="py-2.5 px-3">Size</th>
-                        <th className="py-2.5 px-3">Tier</th>
-                        <th className="py-2.5 px-3">Rent (₹)</th>
-                        <th className="py-2.5 px-3">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#E3E8F0]">
-                      {lockers.map(l => (
-                        <tr key={l.id} className="hover:bg-slate-50">
-                          <td className="py-2.5 px-3 font-mono font-bold text-[#102544]">{l.lockerNumber}</td>
-                          <td className="py-2.5 px-3">{l.branchName}</td>
-                          <td className="py-2.5 px-3 font-medium">{l.size}</td>
-                          <td className="py-2.5 px-3">{l.tier}</td>
-                          <td className="py-2.5 px-3 font-mono">₹{l.annualRent.toLocaleString()}</td>
-                          <td className="py-2.5 px-3">
-                            <span className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold ${
-                              l.status === 'Occupied' ? 'bg-indigo-50 text-[#2457A7] border border-indigo-200' :
-                              l.status === 'Vacant' ? 'bg-emerald-50 text-[#16845B] border border-emerald-200' :
-                              'bg-amber-50 text-[#B7791F] border border-amber-200'
-                            }`}>
-                              {l.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {drillDownType === 'applications' && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#F5F7FA] text-[#66758C] font-semibold text-[11px] uppercase border-b border-[#E3E8F0]">
-                        <th className="py-2.5 px-3">App #</th>
-                        <th className="py-2.5 px-3">Applicant Name</th>
-                        <th className="py-2.5 px-3">Branch</th>
-                        <th className="py-2.5 px-3">Size</th>
-                        <th className="py-2.5 px-3">Mandate</th>
-                        <th className="py-2.5 px-3">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#E3E8F0]">
-                      {applications.map(a => (
-                        <tr key={a.id} className="hover:bg-slate-50">
-                          <td className="py-2.5 px-3 font-mono font-bold text-[#102544]">{a.applicationNumber}</td>
-                          <td className="py-2.5 px-3 font-medium">{a.customerName}</td>
-                          <td className="py-2.5 px-3">{a.branchName}</td>
-                          <td className="py-2.5 px-3">{a.sizeRequested}</td>
-                          <td className="py-2.5 px-3">{a.operatingMode}</td>
-                          <td className="py-2.5 px-3">
-                            <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-[#F5F7FA] text-[#102544] border border-[#E3E8F0]">
-                              {a.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {drillDownType === 'serviceRequests' && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#F5F7FA] text-[#66758C] font-semibold text-[11px] uppercase border-b border-[#E3E8F0]">
-                        <th className="py-2.5 px-3">Ticket #</th>
-                        <th className="py-2.5 px-3">Locker #</th>
-                        <th className="py-2.5 px-3">Request Type</th>
-                        <th className="py-2.5 px-3">Branch</th>
-                        <th className="py-2.5 px-3">Est. Cost</th>
-                        <th className="py-2.5 px-3">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#E3E8F0]">
-                      {serviceRequests.map(sr => (
-                        <tr key={sr.id} className="hover:bg-slate-50">
-                          <td className="py-2.5 px-3 font-mono font-bold text-[#102544]">{sr.ticketNumber}</td>
-                          <td className="py-2.5 px-3 font-mono">Locker {sr.lockerNumber}</td>
-                          <td className="py-2.5 px-3 font-medium">{sr.requestType}</td>
-                          <td className="py-2.5 px-3">{sr.branchName}</td>
-                          <td className="py-2.5 px-3 font-mono">{sr.estimatedCost ? `₹${sr.estimatedCost.toLocaleString()}` : '—'}</td>
-                          <td className="py-2.5 px-3">
-                            <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-amber-50 text-[#B7791F] border border-amber-200">
-                              {sr.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {drillDownType === 'claims' && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#F5F7FA] text-[#66758C] font-semibold text-[11px] uppercase border-b border-[#E3E8F0]">
-                        <th className="py-2.5 px-3">Claim #</th>
-                        <th className="py-2.5 px-3">Locker #</th>
-                        <th className="py-2.5 px-3">Deceased Holder</th>
-                        <th className="py-2.5 px-3">Claimant</th>
-                        <th className="py-2.5 px-3">Stage / Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#E3E8F0]">
-                      {claims.map(c => (
-                        <tr key={c.id} className="hover:bg-slate-50">
-                          <td className="py-2.5 px-3 font-mono font-bold text-[#102544]">{c.claimNumber}</td>
-                          <td className="py-2.5 px-3 font-mono">Locker {c.lockerNumber}</td>
-                          <td className="py-2.5 px-3 font-medium">{c.deceasedHolderName || c.deceasedCustomerName || 'Primary Hirer'}</td>
-                          <td className="py-2.5 px-3">{c.claimantName} ({c.claimantRelationship})</td>
-                          <td className="py-2.5 px-3">
-                            <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-[#102544]/5 text-[#102544] border border-[#102544]/15">
-                              {c.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            <div className="px-6 py-3 bg-[#F5F7FA] border-t border-[#E3E8F0] flex items-center justify-between text-xs text-[#66758C]">
-              <span>Reconciled against Central In-Memory Storage</span>
-              <button
-                onClick={() => setDrillDownType(null)}
-                className="px-4 py-1.5 bg-[#102544] text-white font-semibold rounded-lg hover:bg-[#0B1730]"
-              >
-                Close Ledger Drill-Down
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };

@@ -24,7 +24,10 @@ import {
   Eye,
   Building,
   User,
-  Info
+  Info,
+  MapPin,
+  Check,
+  RefreshCw
 } from 'lucide-react';
 
 export const InventoryManagement: React.FC = () => {
@@ -39,10 +42,11 @@ export const InventoryManagement: React.FC = () => {
     accessLogs
   } = useBanking();
 
-  // Hierarchy Selection: Region -> City -> Branch -> Vault
+  // Hierarchy Selection: Region -> City -> Branch -> Vault Chamber
   const [selectedRegion, setSelectedRegion] = useState<string>('All');
+  const [selectedCity, setSelectedCity] = useState<string>('All');
   const [selectedBranchId, setSelectedBranchId] = useState<string>('br-del-01');
-  const [selectedVaultRoom, setSelectedVaultRoom] = useState<string>('Vault Room A (Main Strongroom)');
+  const [selectedVaultRoom, setSelectedVaultRoom] = useState<string>('Vault Chamber Alpha (Main Strongroom)');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // Filters & Search
@@ -55,22 +59,62 @@ export const InventoryManagement: React.FC = () => {
   const [selectedLocker, setSelectedLocker] = useState<LockerItem | null>(null);
   const [actionSuccessNotice, setActionSuccessNotice] = useState<string | null>(null);
 
-  const currentBranch = branches.find(b => b.id === selectedBranchId) || branches[0];
+  const CITIES = ['Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune'];
+  const REGIONS = ['West', 'North', 'South', 'East'];
 
-  // Distinct regions from branches
-  const regions = useMemo(() => {
-    const set = new Set<string>();
-    branches.forEach(b => {
-      if (b.regionName) set.add(b.regionName);
-    });
-    return Array.from(set);
-  }, [branches]);
+  // Current branch details
+  const currentBranch = useMemo(() => {
+    return branches.find(b => b.id === selectedBranchId) || branches[0];
+  }, [branches, selectedBranchId]);
 
-  // Filtered branches by region
+  // Filtered cities based on selected region
+  const availableCities = useMemo(() => {
+    if (selectedRegion === 'All') return CITIES;
+    const branchesInRegion = branches.filter(b => b.regionName === selectedRegion);
+    const citiesInRegion = new Set(branchesInRegion.map(b => b.city));
+    return CITIES.filter(c => citiesInRegion.has(c));
+  }, [selectedRegion, branches]);
+
+  // Filtered branches based on Region and City
   const filteredBranches = useMemo(() => {
-    if (selectedRegion === 'All') return branches;
-    return branches.filter(b => b.regionName === selectedRegion);
-  }, [branches, selectedRegion]);
+    return branches.filter(b => {
+      if (selectedRegion !== 'All' && b.regionName !== selectedRegion) return false;
+      if (selectedCity !== 'All' && b.city.toLowerCase() !== selectedCity.toLowerCase()) return false;
+      return true;
+    });
+  }, [branches, selectedRegion, selectedCity]);
+
+  // Handle region change with auto-select
+  const handleRegionChange = (reg: string) => {
+    setSelectedRegion(reg);
+    if (reg !== 'All') {
+      const branchesInReg = branches.filter(b => b.regionName === reg);
+      if (branchesInReg.length > 0) {
+        if (!branchesInReg.some(b => b.city.toLowerCase() === selectedCity.toLowerCase())) {
+          setSelectedCity('All');
+        }
+        if (!branchesInReg.some(b => b.id === selectedBranchId)) {
+          setSelectedBranchId(branchesInReg[0].id);
+        }
+      }
+    }
+  };
+
+  // Handle city change with auto-select
+  const handleCityChange = (city: string) => {
+    setSelectedCity(city);
+    if (city !== 'All') {
+      const branchesInCity = branches.filter(b => b.city.toLowerCase() === city.toLowerCase());
+      if (branchesInCity.length > 0) {
+        if (selectedRegion !== 'All' && branchesInCity[0].regionName !== selectedRegion) {
+          setSelectedRegion('All');
+        }
+        if (!branchesInCity.some(b => b.id === selectedBranchId)) {
+          setSelectedBranchId(branchesInCity[0].id);
+        }
+      }
+    }
+  };
 
   // Filtered lockers for currently selected branch & criteria
   const filteredLockers = useMemo(() => {
@@ -82,14 +126,14 @@ export const InventoryManagement: React.FC = () => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchNum = l.lockerNumber.toLowerCase().includes(q);
-        const matchCust = l.customerId?.toLowerCase().includes(q);
+        const matchCust = l.customerId?.toLowerCase().includes(q) || l.customerName?.toLowerCase().includes(q);
         if (!matchNum && !matchCust) return false;
       }
       return true;
     });
   }, [lockers, selectedBranchId, selectedSize, selectedStatus, selectedTier, searchQuery]);
 
-  // Group by Tier for graphical display
+  // Group by Tier for graphical bank vault display
   const lockersByTier = useMemo(() => {
     const tiers: Record<string, LockerItem[]> = {
       'Upper Tier': [],
@@ -150,11 +194,12 @@ export const InventoryManagement: React.FC = () => {
     switch (status) {
       case 'Vacant':
         return {
-          bg: 'bg-emerald-50',
+          bg: 'bg-emerald-50/90',
           border: 'border-emerald-300',
-          badgeBg: 'bg-emerald-600',
+          badgeBg: 'bg-[#16845B]',
+          badgeText: 'text-white',
           text: 'text-emerald-800',
-          dot: 'bg-emerald-500',
+          dot: 'bg-[#16845B]',
           label: 'Available'
         };
       case 'Occupied':
@@ -162,34 +207,38 @@ export const InventoryManagement: React.FC = () => {
           bg: 'bg-[#102544]/5',
           border: 'border-[#102544]/30',
           badgeBg: 'bg-[#102544]',
+          badgeText: 'text-white',
           text: 'text-[#102544]',
           dot: 'bg-[#102544]',
           label: 'Occupied'
         };
       case 'Reserved':
         return {
-          bg: 'bg-amber-50',
+          bg: 'bg-amber-50/90',
           border: 'border-amber-300',
-          badgeBg: 'bg-amber-600',
+          badgeBg: 'bg-[#B7791F]',
+          badgeText: 'text-white',
           text: 'text-amber-800',
-          dot: 'bg-amber-500',
+          dot: 'bg-[#B7791F]',
           label: 'Reserved'
         };
       case 'Blocked':
         return {
-          bg: 'bg-rose-50',
+          bg: 'bg-rose-50/90',
           border: 'border-rose-300',
-          badgeBg: 'bg-rose-600',
+          badgeBg: 'bg-[#C83E44]',
+          badgeText: 'text-white',
           text: 'text-rose-800',
-          dot: 'bg-rose-500',
+          dot: 'bg-[#C83E44]',
           label: 'Blocked'
         };
       case 'Under Maintenance':
       default:
         return {
-          bg: 'bg-[#F5F7FA]',
-          border: 'border-[#E3E8F0]',
+          bg: 'bg-slate-100',
+          border: 'border-slate-300',
           badgeBg: 'bg-[#66758C]',
+          badgeText: 'text-white',
           text: 'text-[#66758C]',
           dot: 'bg-[#66758C]',
           label: 'Maintenance'
@@ -204,7 +253,7 @@ export const InventoryManagement: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-[#E3E8F0]">
         <div>
           <div className="flex items-center gap-2 text-[11px] text-[#66758C] font-mono mb-1">
-            <span>Region: {currentBranch.regionName || 'North'}</span>
+            <span>Circle: {currentBranch.regionName || 'North'}</span>
             <span aria-hidden="true">/</span>
             <span>City: {currentBranch.city}</span>
             <span aria-hidden="true">/</span>
@@ -216,7 +265,7 @@ export const InventoryManagement: React.FC = () => {
             Graphical Bank Vault Inventory & Compartment Matrix
           </h1>
           <p className="text-xs text-[#66758C] mt-0.5">
-            Interactive strongroom grid benchmarking SysArc SAFE. Real-time availability, key register, and transaction drawer.
+            Interactive strongroom grid benchmarking SysArc SAFE. Real-time availability, key register, and transaction drawer across all 28 branches.
           </p>
         </div>
 
@@ -245,55 +294,73 @@ export const InventoryManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Operational Hierarchy Bar */}
-      <div className="p-3.5 bg-white border border-[#E3E8F0] rounded-xl shadow-bank-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* 4-LEVEL CASCADING HIERARCHY SELECTOR */}
+      <div className="p-4 bg-white border border-[#E3E8F0] rounded-xl shadow-bank-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        {/* 1. Region */}
         <div>
-          <label className="block text-[10px] uppercase font-bold text-[#66758C] mb-1">1. Region</label>
+          <label className="block text-[10px] uppercase font-bold text-[#66758C] mb-1">1. Banking Circle</label>
           <select
             value={selectedRegion}
-            onChange={e => setSelectedRegion(e.target.value)}
+            onChange={e => handleRegionChange(e.target.value)}
             className="w-full bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#17263C] focus:bg-white focus:outline-none focus:border-[#2457A7]"
           >
-            <option value="All">All Bank Regions</option>
-            {regions.map(r => (
-              <option key={r} value={r}>{r}</option>
+            <option value="All">All Circles (Nationwide)</option>
+            {REGIONS.map(r => (
+              <option key={r} value={r}>{r} Circle</option>
             ))}
           </select>
         </div>
 
+        {/* 2. City */}
         <div>
-          <label className="block text-[10px] uppercase font-bold text-[#66758C] mb-1">2. Strongroom Branch</label>
+          <label className="block text-[10px] uppercase font-bold text-[#66758C] mb-1">2. Metro City</label>
+          <select
+            value={selectedCity}
+            onChange={e => handleCityChange(e.target.value)}
+            className="w-full bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#17263C] focus:bg-white focus:outline-none focus:border-[#2457A7]"
+          >
+            <option value="All">All 7 Major Cities</option>
+            {availableCities.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* 3. Branch */}
+        <div>
+          <label className="block text-[10px] uppercase font-bold text-[#66758C] mb-1">3. Strongroom Branch</label>
           <select
             value={selectedBranchId}
             onChange={e => setSelectedBranchId(e.target.value)}
             className="w-full bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#17263C] focus:bg-white focus:outline-none focus:border-[#2457A7]"
           >
             {filteredBranches.map(b => (
-              <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
+              <option key={b.id} value={b.id}>{b.name} ({b.city})</option>
             ))}
           </select>
         </div>
 
+        {/* 4. Vault Chamber */}
         <div>
-          <label className="block text-[10px] uppercase font-bold text-[#66758C] mb-1">3. Vault Chamber</label>
+          <label className="block text-[10px] uppercase font-bold text-[#66758C] mb-1">4. Vault Chamber</label>
           <select
             value={selectedVaultRoom}
             onChange={e => setSelectedVaultRoom(e.target.value)}
             className="w-full bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#17263C] focus:bg-white focus:outline-none focus:border-[#2457A7]"
           >
-            <option value="Vault Room A (Main Strongroom)">Vault Room A (Main Strongroom)</option>
-            <option value="Vault Room B (High Security Annex)">Vault Room B (High Security Annex)</option>
-            <option value="Sub-Level 1 Safe Custody Vault">Sub-Level 1 Safe Custody Vault</option>
+            <option value="Vault Chamber Alpha (Main Strongroom)">Chamber Alpha (Main Strongroom)</option>
+            <option value="Vault Chamber Beta (High Security Annex)">Chamber Beta (High Security Annex)</option>
           </select>
         </div>
 
+        {/* 5. Search */}
         <div>
-          <label className="block text-[10px] uppercase font-bold text-[#66758C] mb-1">Search Locker # / CIF</label>
+          <label className="block text-[10px] uppercase font-bold text-[#66758C] mb-1">Search Compartment / CIF</label>
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-[#66758C] absolute left-2.5 top-2.5" />
             <input
               type="text"
-              placeholder="e.g. A-125, CIF-9028..."
+              placeholder="e.g. A-101, B-105, Rahul..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg text-[#17263C] focus:bg-white focus:outline-none focus:border-[#2457A7]"
@@ -306,7 +373,7 @@ export const InventoryManagement: React.FC = () => {
       <div className="p-3.5 bg-white border border-[#E3E8F0] rounded-xl shadow-bank-card flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4 text-xs font-medium">
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-emerald-600" />
+            <span className="w-3 h-3 rounded bg-[#16845B]" />
             <span>Available ({availCount})</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -314,11 +381,11 @@ export const InventoryManagement: React.FC = () => {
             <span>Occupied ({occCount})</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-amber-600" />
+            <span className="w-3 h-3 rounded bg-[#B7791F]" />
             <span>Reserved ({resCount})</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-rose-600" />
+            <span className="w-3 h-3 rounded bg-[#C83E44]" />
             <span>Blocked ({blockCount})</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -327,7 +394,7 @@ export const InventoryManagement: React.FC = () => {
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Size, Status & Tier Filters */}
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <select
             value={selectedSize}
@@ -335,10 +402,10 @@ export const InventoryManagement: React.FC = () => {
             className="bg-[#F5F7FA] border border-[#E3E8F0] rounded-md px-2.5 py-1 text-xs text-[#17263C] font-semibold"
           >
             <option value="All">All Sizes</option>
-            <option value="Small">Small</option>
-            <option value="Medium">Medium</option>
-            <option value="Large">Large</option>
-            <option value="Extra Large">Extra Large</option>
+            <option value="Small">Small (S)</option>
+            <option value="Medium">Medium (M)</option>
+            <option value="Large">Large (L)</option>
+            <option value="Extra Large">Extra Large (XL)</option>
           </select>
 
           <select
@@ -385,9 +452,9 @@ export const InventoryManagement: React.FC = () => {
               <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-2">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-[#102544] text-xs uppercase tracking-wider">{tierName} Compartments</span>
-                  <span className="text-[#66758C] text-[11px] font-mono">({tierLockers.length} units)</span>
+                  <span className="text-[#66758C] text-[11px] font-mono">({tierLockers.length} units in {currentBranch.name})</span>
                 </div>
-                <span className="text-[10px] text-[#66758C]">Click compartment to view transaction details</span>
+                <span className="text-[10px] text-[#66758C]">Click compartment for custodian drawer</span>
               </div>
 
               {tierLockers.length === 0 ? (
@@ -413,23 +480,33 @@ export const InventoryManagement: React.FC = () => {
                         }`}
                         title={`Locker #${lkr.lockerNumber} (${lkr.size}) - ${statusInfo.label}`}
                       >
-                        {/* Top indicator & size */}
+                        {/* Top indicator & size badge */}
                         <div className="flex items-center justify-between">
-                          <span className={`w-2 h-2 rounded-full ${statusInfo.dot}`} />
-                          <span className="text-[10px] font-mono font-bold text-[#66758C] uppercase">
-                            {lkr.size.substring(0, 2)}
+                          <span className={`w-2.5 h-2.5 rounded-full ${statusInfo.dot}`} />
+                          <span className="text-[10px] font-mono font-bold text-[#66758C] uppercase bg-white/70 px-1.5 py-0.5 rounded border border-slate-200">
+                            {lkr.size}
                           </span>
                         </div>
 
-                        {/* Locker Number & Visual Keyhole Graphic */}
-                        <div className="my-2.5 text-center space-y-1">
+                        {/* Locker Number & Dual Keyhole bank vault graphic */}
+                        <div className="my-2 text-center space-y-1">
                           <div className="font-mono font-extrabold text-[#102544] text-sm tracking-tight">
                             #{lkr.lockerNumber}
                           </div>
+                          
                           {/* Dual Master & Hirer Keyholes Graphic */}
-                          <div className="flex items-center justify-center gap-1.5 opacity-60">
-                            <div className="w-1.5 h-3 bg-slate-400 rounded-xs" title="Bank Master Key" />
-                            <div className="w-1.5 h-3 bg-slate-500 rounded-xs" title="Hirer Key" />
+                          <div className="flex items-center justify-center gap-2 py-0.5">
+                            <div className="w-1.5 h-3 bg-amber-700/60 rounded-xs shadow-inner" title="Bank Custodian Key" />
+                            <div className="w-1.5 h-3 bg-slate-600 rounded-xs shadow-inner" title="Hirer Safe Key" />
+                          </div>
+
+                          {/* Customer mask or Available status */}
+                          <div className="text-[10px] truncate font-medium text-[#66758C]">
+                            {lkr.status === 'Occupied'
+                              ? lkr.customerName ? lkr.customerName : 'Assigned Hirer'
+                              : lkr.status === 'Vacant'
+                              ? 'Ready to Allot'
+                              : lkr.status}
                           </div>
                         </div>
 
@@ -438,7 +515,7 @@ export const InventoryManagement: React.FC = () => {
                           <span className={`font-semibold ${statusInfo.text}`}>
                             {statusInfo.label}
                           </span>
-                          <span className="font-mono tabular-nums text-[#66758C]">
+                          <span className="font-mono tabular-nums text-[#17263C] font-bold">
                             ₹{(lkr.annualRent / 1000).toFixed(1)}k
                           </span>
                         </div>
@@ -499,10 +576,10 @@ export const InventoryManagement: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-2.5 px-3">
-                        {lkr.customerId ? (
+                        {lkr.customerName || lkr.customerId ? (
                           <div>
-                            <span className="font-semibold text-[#17263C]">Rahul Sharma</span>
-                            <span className="text-[10px] font-mono text-[#66758C] block">CIF-9028192831</span>
+                            <span className="font-semibold text-[#17263C]">{lkr.customerName || 'Rahul Sharma'}</span>
+                            <span className="text-[10px] font-mono text-[#66758C] block">{lkr.cifNumber || 'CIF-9028192831'}</span>
                           </div>
                         ) : (
                           <span className="text-[#66758C] italic">Unassigned</span>
@@ -545,7 +622,7 @@ export const InventoryManagement: React.FC = () => {
             {/* Drawer Header */}
             <div className="px-6 py-4 border-b border-[#E3E8F0] bg-[#102544] text-white flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-[#008C88] font-mono font-bold text-sm">
+                <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-[#008C88] font-mono font-bold text-sm">
                   #{selectedLocker.lockerNumber}
                 </div>
                 <div>
@@ -587,7 +664,7 @@ export const InventoryManagement: React.FC = () => {
                     onClick={handleToggleFreeze}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
                       selectedLocker.status === 'Blocked'
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        ? 'bg-[#16845B] hover:bg-emerald-700 text-white'
                         : 'bg-rose-50 hover:bg-rose-100 text-[#C83E44] border border-rose-200'
                     }`}
                   >
@@ -609,15 +686,15 @@ export const InventoryManagement: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-[#66758C] text-[10px] block">Manufacturer Key Serial</span>
-                    <strong className="font-mono text-[#102544]">KEY-ANB-{selectedLocker.lockerNumber}-A</strong>
+                    <strong className="font-mono text-[#102544]">KEY-NB-{selectedLocker.lockerNumber}-A</strong>
                   </div>
                   <div>
-                    <span className="text-[#66758C] text-[10px] block">Vault Sub-Room</span>
-                    <span className="font-medium text-[#17263C]">Strongroom Level 1, Bay 4</span>
+                    <span className="text-[#66758C] text-[10px] block">Vault Chamber</span>
+                    <span className="font-medium text-[#17263C]">{selectedVaultRoom}</span>
                   </div>
                   <div>
                     <span className="text-[#66758C] text-[10px] block">Dual Key Mechanism</span>
-                    <span className="font-medium text-emerald-700">Master #1 + Hirer #2</span>
+                    <span className="font-medium text-emerald-700">Bank Custodian + Hirer Key</span>
                   </div>
                 </div>
               </div>
@@ -648,12 +725,12 @@ export const InventoryManagement: React.FC = () => {
                 <h4 className="font-bold text-xs uppercase tracking-wider text-[#66758C]">
                   Hirer & Mandate Information
                 </h4>
-                {selectedLocker.customerId ? (
+                {selectedLocker.customerId || selectedLocker.customerName ? (
                   <div className="p-3.5 bg-white border border-[#E3E8F0] rounded-xl space-y-2">
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="font-bold text-sm text-[#102544]">Rahul Sharma</span>
-                        <span className="text-[#66758C] font-mono text-xs block">CIF-9028192831</span>
+                        <span className="font-bold text-sm text-[#102544]">{selectedLocker.customerName || 'Rahul Sharma'}</span>
+                        <span className="text-[#66758C] font-mono text-xs block">{selectedLocker.cifNumber || 'CIF-9028192831'}</span>
                       </div>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-[#2457A7] border border-indigo-200">
                         {selectedLocker.operatingMode || 'Either or Survivor'}

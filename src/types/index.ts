@@ -23,14 +23,24 @@ export interface Branch {
   code: string;
   solId?: string;
   city: string;
+  state: string;
   regionId: string;
   regionName: string;
+  branchType?: 'Flagship Vault' | 'Premier Wealth Branch' | 'Corporate Hub' | 'Retail Hub';
   address: string;
   custodianName: string;
+  managerName?: string;
   contactNumber: string;
+  email?: string;
   operatingHours: string;
+  vaults?: string[];
   totalLockers: number;
+  occupiedLockers?: number;
   availableLockers: number;
+  reservedLockers?: number;
+  blockedLockers?: number;
+  maintenanceLockers?: number;
+  status?: 'Operational' | 'Active' | 'Audit Review';
 }
 
 export interface LockerItem {
@@ -38,6 +48,12 @@ export interface LockerItem {
   lockerNumber: string;
   branchId: string;
   branchName: string;
+  city?: string;
+  state?: string;
+  regionId?: string;
+  regionName?: string;
+  vaultId?: string;
+  vaultName?: string;
   size: LockerSize;
   dimensions: string; // e.g. "125 x 175 x 492 mm"
   annualRent: number;
@@ -46,12 +62,16 @@ export interface LockerItem {
   floor: string;
   tier: string; // "Eye Level", "Upper Tier", "Lower Tier"
   customerId?: string;
+  customerName?: string;
+  cifNumber?: string;
   allotmentDate?: string;
   nextRenewalDate?: string;
+  renewalDate?: string;
   lastAccessDate?: string;
   operatingMode?: OperatingMode;
   outstandingRent?: number;
   keyNumber?: string;
+  securityDepositRef?: string;
 }
 
 export interface Holder {
