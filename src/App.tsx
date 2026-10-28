@@ -27,16 +27,22 @@ import { LockerClosure } from './components/customer/LockerClosure';
 
 // Admin / Branch Operations Modules
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { ExecutiveDashboard } from './components/admin/ExecutiveDashboard';
 import { InventoryManagement } from './components/admin/InventoryManagement';
 import { ApplicationManagement } from './components/admin/ApplicationManagement';
 import { VisitManagement } from './components/admin/VisitManagement';
 import { BillingManagement } from './components/admin/BillingManagement';
+import { FinancialManagement } from './components/admin/FinancialManagement';
+import { BreakOpenManagement } from './components/admin/BreakOpenManagement';
+import { CustomerManagementDesk } from './components/admin/CustomerManagementDesk';
+import { ReportsMisCenter } from './components/admin/ReportsMisCenter';
 import { NomineeHolderProcessing } from './components/admin/NomineeHolderProcessing';
 import { ServiceRequestAdmin } from './components/admin/ServiceRequestAdmin';
 import { ClaimsAdmin } from './components/admin/ClaimsAdmin';
 import { ComplaintDesk } from './components/admin/ComplaintDesk';
 import { AuditSecurityControls } from './components/admin/AuditSecurityControls';
 import { AdministrationHub } from './components/admin/AdministrationHub';
+import { VerificationTestSuiteModal } from './components/common/VerificationTestSuiteModal';
 
 import { Lock, KeyRound } from 'lucide-react';
 
@@ -122,7 +128,7 @@ const SessionTimeoutModal: React.FC = () => {
 };
 
 const MainModuleRouter: React.FC = () => {
-  const { userRole, customerView, adminView } = useBanking();
+  const { userRole, customerView, adminView, setAdminView } = useBanking();
 
   return (
     <div className="w-full">
@@ -144,18 +150,69 @@ const MainModuleRouter: React.FC = () => {
         </>
       ) : (
         <>
-          {adminView === 'admin-dashboard' && <AdminDashboard />}
-          {adminView === 'inventory' && <InventoryManagement />}
-          {adminView === 'applications' && <ApplicationManagement />}
-          {adminView === 'visits' && <VisitManagement />}
-          {adminView === 'billing' && <BillingManagement />}
+          {/* DASHBOARD */}
+          {(adminView === 'admin-dashboard' || adminView === 'dashboard') && <AdminDashboard />}
+          {adminView === 'executive-dashboard' && <ExecutiveDashboard />}
+          {adminView === 'customer-dashboard' && (
+            <div className="space-y-4">
+              <div className="p-3.5 bg-[#102544] text-white rounded-xl shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#008C88] animate-pulse" />
+                  <div>
+                    <span className="font-bold">Staff Oversight Mode:</span>
+                    <span className="text-white/80 ml-1.5">
+                      Customer Self-Service SafeVault Experience (Simulating Active Hirer Rahul Sharma - CIF-8829104)
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setAdminView('admin-dashboard')}
+                  className="px-3.5 py-1.5 bg-white hover:bg-[#F5F7FA] text-[#102544] rounded-lg font-bold text-xs transition-colors shrink-0 shadow-xs cursor-pointer"
+                >
+                  Return to Operations Dashboard →
+                </button>
+              </div>
+              <CustomerDashboard />
+            </div>
+          )}
+
+          {/* LOCKER OPERATIONS */}
+          {(adminView === 'inventory' || adminView === 'availability') && <InventoryManagement />}
+          {(adminView === 'applications' || adminView === 'waiting-list' || adminView === 'allotment') && <ApplicationManagement />}
+          {(adminView === 'visits' || adminView === 'visit-management') && <VisitManagement />}
+          {adminView === 'surrender-ops' && <LockerClosure />}
+          {adminView === 'break-open' && <BreakOpenManagement />}
+
+          {/* FINANCIAL MANAGEMENT */}
+          {(adminView === 'billing' || adminView === 'rent-collection') && <FinancialManagement initialTab="ledger" />}
+          {adminView === 'arrears' && <FinancialManagement initialTab="arrears" />}
+          {adminView === 'deposits' && <FinancialManagement initialTab="deposits" />}
+          {adminView === 'payment-recon' && <FinancialManagement initialTab="reconciliation" />}
+
+          {/* CUSTOMER MANAGEMENT */}
+          {(adminView === 'customer-mgmt' || adminView === 'mandates') && <CustomerManagementDesk />}
           {adminView === 'holders' && <NomineeHolderProcessing />}
           {adminView === 'agreements' && <Agreements />}
           {adminView === 'requests' && <ServiceRequestAdmin />}
           {adminView === 'claims' && <ClaimsAdmin />}
           {adminView === 'support' && <ComplaintDesk />}
-          {adminView === 'audit' && <AuditSecurityControls />}
+
+          {/* ADMINISTRATION */}
           {adminView === 'administration' && <AdministrationHub />}
+          {adminView === 'branch-master' && <AdministrationHub initialTab="branches" />}
+          {(adminView === 'locker-master' || adminView === 'rent-master') && <AdministrationHub initialTab="tariffs" />}
+          {adminView === 'user-mgmt' && <AdministrationHub initialTab="users" />}
+          {adminView === 'permissions' && <AdministrationHub initialTab="roles" />}
+          {(adminView === 'approval-matrix' || adminView === 'sla-config') && <AdministrationHub initialTab="sla" />}
+
+          {/* REPORTS & AUDIT */}
+          {adminView === 'audit' && <AuditSecurityControls />}
+          {adminView === 'reports-mis' && <ReportsMisCenter />}
+          {adminView === 'rep-availability' && <ReportsMisCenter initialReport="availability" />}
+          {adminView === 'rep-occupancy' && <ReportsMisCenter initialReport="occupancy" />}
+          {adminView === 'rep-arrears' && <ReportsMisCenter initialReport="arrears" />}
+          {adminView === 'rep-access' && <ReportsMisCenter initialReport="access" />}
+          {adminView === 'rep-tat' && <ReportsMisCenter initialReport="tat" />}
         </>
       )}
     </div>
@@ -195,6 +252,9 @@ const EnterpriseAppLayout: React.FC = () => {
 
         {/* Inactivity Security Session Modal */}
         <SessionTimeoutModal />
+
+        {/* 12-Scenario Verification & Quality Assurance Suite */}
+        <VerificationTestSuiteModal />
 
         {/* Quiet Enterprise Banking Footer */}
         <footer className="border-t border-[#E3E8F0] bg-white py-5 text-xs text-[#66758C] mt-auto">

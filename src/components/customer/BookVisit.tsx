@@ -362,41 +362,39 @@ export const BookVisit: React.FC = () => {
             </h3>
             <form onSubmit={handleRescheduleSubmit} className="space-y-4">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">New Date</label>
+                <label className="block font-medium text-[#17263C] mb-1">New Date</label>
                 <input
                   type="date"
                   value={rescheduleDate}
                   min="2026-10-23"
                   onChange={e => setRescheduleDate(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-mono tabular-nums text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                   required
                 />
               </div>
-
               <div>
-                <label className="block font-medium text-slate-700 mb-1">New Time Slot</label>
+                <label className="block font-medium text-[#17263C] mb-1">New Time Slot</label>
                 <select
                   value={rescheduleSlot}
                   onChange={e => setRescheduleSlot(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-medium text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-medium text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 >
                   {availableSlots.map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </div>
-
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setRescheduleAptId(null)}
-                  className="px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg"
+                  className="px-3 py-1.5 text-[#66758C] hover:bg-[#F5F7FA] rounded-lg transition-colors font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800"
+                  className="px-4 py-1.5 bg-[#102544] text-white font-semibold rounded-lg hover:bg-[#0B1730] transition-colors shadow-xs"
                 >
                   Save Reschedule
                 </button>

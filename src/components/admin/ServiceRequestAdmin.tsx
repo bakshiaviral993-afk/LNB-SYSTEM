@@ -14,16 +14,24 @@ import {
 } from 'lucide-react';
 
 export const ServiceRequestAdmin: React.FC = () => {
-  const { serviceRequests, adminUpdateServiceRequest, adminFinalizeClosure } = useBanking();
+  const {
+    serviceRequests,
+    adminUpdateServiceRequest,
+    adminFinalizeClosure,
+    adminCheckerApproveServiceRequest,
+    adminMakerReviewServiceRequest
+  } = useBanking();
 
   const [selectedSr, setSelectedSr] = useState<ServiceRequest | null>(serviceRequests[0] || null);
   const [newStatus, setNewStatus] = useState<ServiceRequest['status']>('Under Scrutiny');
   const [remarks, setRemarks] = useState('');
   const [cost, setCost] = useState<string>('');
+  const [srError, setSrError] = useState<string | null>(null);
 
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSr) return;
+    setSrError(null);
 
     if (newStatus === 'Resolved / Closed' && selectedSr.requestType === 'Surrender Locker') {
       adminFinalizeClosure(selectedSr.lockerId, selectedSr.id);
@@ -31,12 +39,22 @@ export const ServiceRequestAdmin: React.FC = () => {
       return;
     }
 
-    adminUpdateServiceRequest(
-      selectedSr.id,
-      newStatus,
-      remarks || `Status updated to ${newStatus} by Branch Operations Manager`,
-      cost ? parseFloat(cost) : undefined
-    );
+    if (newStatus === 'Resolved / Closed' || newStatus === 'Approved by Manager') {
+      const result = adminCheckerApproveServiceRequest(selectedSr.id, remarks || `Approved by Checker (${newStatus})`);
+      if (result && !result.success) {
+        setSrError(result.error || 'Dual-control authorization failed.');
+        return;
+      }
+    } else if (newStatus === 'In Progress' || newStatus === 'Under Scrutiny') {
+      adminMakerReviewServiceRequest(selectedSr.id, remarks || 'Maker verification recorded', cost ? parseFloat(cost) : undefined);
+    } else {
+      adminUpdateServiceRequest(
+        selectedSr.id,
+        newStatus,
+        remarks || `Status updated to ${newStatus} by Branch Operations Manager`,
+        cost ? parseFloat(cost) : undefined
+      );
+    }
     setRemarks('');
     setSelectedSr(null);
   };
@@ -153,6 +171,16 @@ export const ServiceRequestAdmin: React.FC = () => {
 
             {/* Action Form */}
             <form onSubmit={handleUpdate} className="space-y-4 pt-2 border-t border-[#E3E8F0]">
+              {srError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-[#C83E44] flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <span className="font-bold block">Maker-Checker Rule Enforcement</span>
+                    <span>{srError}</span>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-[#17263C] mb-1.5">

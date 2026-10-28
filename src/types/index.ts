@@ -5,6 +5,10 @@ export type UserRole =
   | 'branch_manager' 
   | 'ho_admin' 
   | 'auditor'
+  | 'super_admin'
+  | 'regional_manager'
+  | 'locker_custodian'
+  | 'customer_service'
   | 'admin'; // Backward compatibility
 
 export type LockerSize = 'Small' | 'Medium' | 'Large' | 'Extra Large';
@@ -401,15 +405,20 @@ export interface AuditLogItem {
     | 'Branch Checker' 
     | 'Branch Manager' 
     | 'Head Office Admin' 
+    | 'Head Office Administrator'
+    | 'Super Administrator'
+    | 'Regional Manager'
+    | 'Customer Service'
     | 'Auditor' 
     | 'System CBS' 
     | 'Branch Operations Manager' 
     | 'Locker Custodian' 
     | 'Head Office Operations Head'
     | 'Branch Maker (Clerk/Officer)'
-    | 'Branch Checker (Manager)';
+    | 'Branch Checker (Manager)'
+    | string;
   action: string;
-  entityType: 'Locker' | 'Appointment' | 'Payment' | 'Nominee' | 'ServiceRequest' | 'Claim' | 'Agreement' | 'Waitlist' | 'KYC' | 'SystemConfig' | 'AuditLog';
+  entityType: 'Locker' | 'Appointment' | 'Payment' | 'Nominee' | 'ServiceRequest' | 'Claim' | 'Agreement' | 'Waitlist' | 'KYC' | 'SystemConfig' | 'AuditLog' | 'Tariff' | 'SLA' | 'StaffUser' | 'Branch' | 'Template' | string;
   entityId: string;
   branchName: string;
   ipAddress: string;
@@ -504,12 +513,15 @@ export interface WorkflowScenario {
   id: string;
   scenarioCode?: string;
   scenarioNumber?: number;
+  testId?: string;
   title: string;
-  category?: 'Customer' | 'Branch Operations' | 'Administration';
+  category?: 'Customer' | 'Branch Operations' | 'Administration' | 'Security & Governance';
   customerAction?: string;
   bankAction?: string;
   description: string;
+  expectedOutcome?: string;
+  actualOutcome?: string;
   lastTestedDate?: string;
   steps: ScenarioStep[];
-  status: 'passed' | 'in_progress' | 'pending' | 'Implemented & Verified' | 'Ready to Test';
+  status: 'passed' | 'failed' | 'blocked' | 'in_progress' | 'pending' | 'Implemented & Verified' | 'Ready to Test';
 }

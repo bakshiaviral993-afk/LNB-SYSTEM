@@ -43,6 +43,7 @@ export const RentPayments: React.FC = () => {
 
   // Document modal state
   const [viewDoc, setViewDoc] = useState<StoredDocument | null>(null);
+  const [mandateSavedMsg, setMandateSavedMsg] = useState(false);
 
   const selectedLockerObj = lockers.find(l => l.id === payLockerId) || customerLockers[0];
   const outstandingAmount = selectedLockerObj?.outstandingRent || 0;
@@ -372,22 +373,22 @@ export const RentPayments: React.FC = () => {
 
       {/* TAB 3: AUTO-DEBIT / NACH */}
       {activeTab === 'autodebit' && (
-        <div className="max-w-2xl mx-auto bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-5 text-xs">
+        <div className="max-w-2xl mx-auto bg-white border border-[#E3E8F0] rounded-xl p-6 shadow-xs space-y-5 text-xs">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">
+            <h3 className="text-sm font-bold text-[#102544]">
               Automated Annual Locker Rental Debit (e-Mandate)
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-[#66758C] mt-0.5">
               Avoid default penalty and lock freeze by maintaining automatic CBS account deduction
             </p>
           </div>
 
           <div className="space-y-4">
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+            <div className="p-4 bg-[#F5F7FA] rounded-xl border border-[#E3E8F0] space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-slate-900 text-xs block">Active CBS Standing Instruction</span>
-                  <span className="text-[11px] text-slate-500">Mandate Ref: NACH/ANB/2024/001928</span>
+                  <span className="font-bold text-[#102544] text-xs block">Active CBS Standing Instruction</span>
+                  <span className="text-[11px] text-[#66758C] font-mono tabular-nums">Mandate Ref: NACH/ANB/2024/001928</span>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -396,18 +397,18 @@ export const RentPayments: React.FC = () => {
                     onChange={e => setAutoDebitEnabled(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
+                  <div className="w-11 h-6 bg-[#E3E8F0] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#E3E8F0] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#102544]"></div>
                 </label>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-[11px]">
                 <div>
-                  <span className="text-slate-400 block">Deduction Account</span>
-                  <span className="font-mono font-medium text-slate-800">{autoDebitAccount}</span>
+                  <span className="text-[#66758C] block">Deduction Account</span>
+                  <span className="font-mono tabular-nums font-medium text-[#17263C]">{autoDebitAccount}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Mandate Ceiling Cap</span>
-                  <span className="font-mono font-medium text-slate-800">₹{maxDebitCap} per annum</span>
+                  <span className="text-[#66758C] block">Mandate Ceiling Cap</span>
+                  <span className="font-mono tabular-nums font-medium text-[#17263C]">₹{maxDebitCap} per annum</span>
                 </div>
               </div>
             </div>
@@ -419,11 +420,20 @@ export const RentPayments: React.FC = () => {
               </span>
             </div>
 
-            <div className="pt-2 flex justify-end">
+            <div className="pt-2 flex items-center justify-end gap-3">
+              {mandateSavedMsg && (
+                <span className="text-xs text-[#16845B] font-semibold flex items-center gap-1 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-[#16845B]" />
+                  e-Mandate configuration updated successfully!
+                </span>
+              )}
               <button
                 type="button"
-                onClick={() => alert('e-Mandate configuration updated successfully.')}
-                className="px-5 py-2 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800"
+                onClick={() => {
+                  setMandateSavedMsg(true);
+                  setTimeout(() => setMandateSavedMsg(false), 3500);
+                }}
+                className="px-5 py-2 bg-[#102544] hover:bg-[#0B1730] text-white font-semibold rounded-lg text-xs shadow-xs transition-colors"
               >
                 Save Mandate Settings
               </button>
@@ -436,52 +446,52 @@ export const RentPayments: React.FC = () => {
       {activeTab === 'deposits' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-900">
+            <h3 className="text-sm font-bold text-[#102544]">
               Linked Security Term Deposits (FD Accounts)
             </h3>
-            <span className="text-xs text-slate-500">Security guarantee as per RBI circular</span>
+            <span className="text-xs text-[#66758C]">Security guarantee as per RBI circular</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
             {customerLockers.map(lkr => (
               <div
                 key={lkr.id}
-                className="p-5 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-4"
+                className="p-5 bg-white border border-[#E3E8F0] rounded-xl shadow-xs space-y-4"
               >
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
                   <div className="flex items-center gap-2">
-                    <Landmark className="w-4 h-4 text-slate-700" />
-                    <span className="font-bold text-slate-900">Locker {lkr.lockerNumber} Deposit</span>
+                    <Landmark className="w-4 h-4 text-[#2457A7]" />
+                    <span className="font-bold text-[#102544]">Locker {lkr.lockerNumber} Deposit</span>
                   </div>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                  <span className="text-[10px] font-bold text-[#16845B] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
                     Active Bank Lien
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-[11px]">
                   <div>
-                    <span className="text-slate-400 block">FD Account Number</span>
-                    <span className="font-mono font-medium text-slate-900">
+                    <span className="text-[#66758C] block">FD Account Number</span>
+                    <span className="font-mono tabular-nums font-medium text-[#102544]">
                       FD-{lkr.id === 'lck-125' ? '88219001' : '91042883'}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Principal Held</span>
-                    <span className="font-mono font-bold text-slate-900">
+                    <span className="text-[#66758C] block">Principal Held</span>
+                    <span className="font-mono tabular-nums font-bold text-[#102544]">
                       ₹{lkr.securityDeposit.toLocaleString('en-IN')}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Interest Rate</span>
-                    <span className="font-mono font-medium text-emerald-700">7.10% p.a. (Compounded)</span>
+                    <span className="text-[#66758C] block">Interest Rate</span>
+                    <span className="font-mono tabular-nums font-medium text-[#16845B]">7.10% p.a. (Compounded)</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Lien Holder</span>
-                    <span className="font-medium text-slate-800">National Bank</span>
+                    <span className="text-[#66758C] block">Lien Holder</span>
+                    <span className="font-medium text-[#17263C]">National Bank</span>
                   </div>
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded border border-slate-200 text-[11px] text-slate-500 leading-relaxed">
+                <div className="p-3 bg-[#F5F7FA] rounded-lg border border-[#E3E8F0] text-[11px] text-[#66758C] leading-relaxed">
                   Principal deposit remains fully intact and refundable upon locker surrender. Quarterly interest is automatically credited to your linked Premier Savings Account.
                 </div>
               </div>

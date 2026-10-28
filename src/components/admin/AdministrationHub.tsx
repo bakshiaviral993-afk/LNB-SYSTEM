@@ -22,7 +22,9 @@ import {
   Eye
 } from 'lucide-react';
 
-export const AdministrationHub: React.FC = () => {
+export const AdministrationHub: React.FC<{
+  initialTab?: 'users' | 'roles' | 'branches' | 'tariffs' | 'sla' | 'templates' | 'reports';
+}> = ({ initialTab }) => {
   const {
     staffUsers,
     currentUser,
@@ -46,7 +48,13 @@ export const AdministrationHub: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<
     'users' | 'roles' | 'branches' | 'tariffs' | 'sla' | 'templates' | 'reports'
-  >('users');
+  >(initialTab || 'users');
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Tariffs editing state
   const [editingTariffId, setEditingTariffId] = useState<string | null>(null);
@@ -784,14 +792,14 @@ export const AdministrationHub: React.FC = () => {
 
       {/* Add Staff Modal */}
       {showAddUserModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B1730]/75 backdrop-blur-xs p-4">
           <div className="bg-white rounded-2xl shadow-bank-dropdown border border-[#E3E8F0] max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
               <div>
-                <h3 className="font-bold text-[#17263C] text-sm">Provision Staff User</h3>
+                <h3 className="font-bold text-[#102544] text-sm">Provision Staff User</h3>
                 <p className="text-xs text-[#66758C] mt-0.5">Authorize new officer with role-based strongroom permissions</p>
               </div>
-              <button onClick={() => setShowAddUserModal(false)} className="text-[#66758C] hover:text-[#17263C] p-1 rounded-md hover:bg-slate-100">
+              <button onClick={() => setShowAddUserModal(false)} className="text-[#66758C] hover:text-[#17263C] p-1 rounded-md hover:bg-[#F5F7FA]">
                 <X className="w-4 h-4" />
               </button>
             </div>

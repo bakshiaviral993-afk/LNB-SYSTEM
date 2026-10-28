@@ -54,7 +54,8 @@ export const Header: React.FC<HeaderProps> = ({
     appointments,
     serviceRequests,
     logout,
-    navigate
+    navigate,
+    setIsQaSuiteOpen
   } = useBanking();
 
   const [showNotifMenu, setShowNotifMenu] = useState(false);
@@ -73,11 +74,15 @@ export const Header: React.FC<HeaderProps> = ({
 
   const rolesConfig: { role: UserRole; title: string; person: string; badge: string; color: string }[] = [
     { role: 'customer', title: 'Customer Self-Service', person: 'Rahul Sharma (CIF-9028192831)', badge: 'CUSTOMER', color: 'bg-[#2457A7]/15 text-[#2457A7] border-[#2457A7]/30' },
-    { role: 'branch_maker', title: 'Branch Maker (Clerk / Officer)', person: 'Anil Kumar (Operations Officer)', badge: 'MAKER', color: 'bg-[#008C88]/15 text-[#008C88] border-[#008C88]/30' },
-    { role: 'branch_checker', title: 'Branch Checker (Manager)', person: 'Priya Nair (Senior Manager)', badge: 'CHECKER', color: 'bg-[#102544]/15 text-[#102544] border-[#102544]/30' },
-    { role: 'branch_manager', title: 'Branch Head & Custodian', person: 'Vikramaditya Sen (AVP & Head)', badge: 'BRANCH HEAD', color: 'bg-[#16845B]/15 text-[#16845B] border-[#16845B]/30' },
-    { role: 'ho_admin', title: 'Head Office Administration', person: 'Sunita Rao (Chief Operations Officer)', badge: 'HO ADMIN', color: 'bg-[#102544] text-white border-[#102544]' },
-    { role: 'auditor', title: 'Concurrent Internal Auditor', person: 'Rameshwar Patil (Inspection Auditor)', badge: 'AUDITOR', color: 'bg-[#B7791F]/15 text-[#B7791F] border-[#B7791F]/30' },
+    { role: 'branch_maker', title: 'Branch Operations Maker', person: 'Anil Kumar (Operations Officer)', badge: 'MAKER', color: 'bg-[#008C88]/15 text-[#008C88] border-[#008C88]/30' },
+    { role: 'branch_checker', title: 'Branch Operations Checker', person: 'Priya Nair (Senior Manager)', badge: 'CHECKER', color: 'bg-[#102544]/15 text-[#102544] border-[#102544]/30' },
+    { role: 'branch_manager', title: 'Branch Manager', person: 'Vikramaditya Sen (AVP & Branch Head)', badge: 'BRANCH MGR', color: 'bg-[#16845B]/15 text-[#16845B] border-[#16845B]/30' },
+    { role: 'locker_custodian', title: 'Locker Custodian', person: 'Meenakshi Sundaram (Senior Custodian)', badge: 'CUSTODIAN', color: 'bg-[#7C3AED]/15 text-[#7C3AED] border-[#7C3AED]/30' },
+    { role: 'regional_manager', title: 'Regional Operations Manager', person: 'Devendra Joshi (DGM North Region)', badge: 'REGIONAL MGR', color: 'bg-[#0284C7]/15 text-[#0284C7] border-[#0284C7]/30' },
+    { role: 'ho_admin', title: 'Head Office Administrator', person: 'Sunita Rao (Chief Operations Officer)', badge: 'HO ADMIN', color: 'bg-[#102544] text-white border-[#102544]' },
+    { role: 'super_admin', title: 'Super Administrator', person: 'Rajiv Malhotra (Head of Technology)', badge: 'SUPER ADMIN', color: 'bg-[#C83E44]/15 text-[#C83E44] border-[#C83E44]/30' },
+    { role: 'customer_service', title: 'Customer Service Executive', person: 'Neha Verma (Relationship Officer)', badge: 'CSE OFFICER', color: 'bg-[#D97706]/15 text-[#D97706] border-[#D97706]/30' },
+    { role: 'auditor', title: 'Audit & Compliance Officer', person: 'Rameshwar Patil (Inspection Auditor)', badge: 'AUDITOR', color: 'bg-[#B7791F]/15 text-[#B7791F] border-[#B7791F]/30' },
   ];
 
   const currentRoleConfig = rolesConfig.find(r => r.role === userRole) || rolesConfig[0];
@@ -150,18 +155,44 @@ export const Header: React.FC<HeaderProps> = ({
       return titles[customerView] || 'Overview';
     } else {
       const titles: Record<string, string> = {
-        'admin-dashboard': 'Operations Overview',
-        inventory: 'Vault Inventory & Grid',
+        'executive-dashboard': 'Executive Dashboard & Analytics',
+        'admin-dashboard': 'Branch Operations Overview',
+        'customer-dashboard': 'Customer Self-Service (Staff Oversight)',
+        inventory: 'Vault Inventory & Compartment Grid',
+        availability: 'Locker Availability Matrix',
         applications: 'Applications (Maker-Checker)',
-        visits: 'Visit Queue & Turnstile',
-        billing: 'Billing & Auto-Debit',
-        holders: 'Nominee Scrutiny',
-        agreements: 'Agreement Administration',
+        'waiting-list': 'Waiting List Register',
+        allotment: 'Locker Allotment Console',
+        visits: 'Visit Queue & Turnstile Gate',
+        'surrender-ops': 'Locker Surrender Operations',
+        'break-open': 'Statutory Break-Open Protocol',
+        billing: 'Rent Ledger & Invoices',
+        'rent-collection': 'Rent Collection Console',
+        arrears: 'Overdue Arrears Ageing Register',
+        deposits: 'Security Deposits & Liens',
+        'payment-recon': 'CBS Payment Reconciliation',
+        'customer-mgmt': 'Customer Portfolio & 360° Master',
+        holders: 'Nominee Scrutiny (Form DA-1)',
+        mandates: 'Operating Mandates Administration',
+        agreements: 'Agreement & Legal Administration',
         requests: 'Service Requests Desk',
         claims: 'Deceased Claims Desk',
         support: 'Ombudsman & Grievances',
         audit: 'Audit Trail & Controls',
-        administration: 'Administration Hub'
+        administration: 'Administration Hub',
+        'branch-master': 'Branch Master Management',
+        'locker-master': 'Locker Master & Tariffs',
+        'rent-master': 'Rental Tariff Master',
+        'user-mgmt': 'Staff User Management',
+        permissions: 'Role × Module Permissions Matrix',
+        'approval-matrix': 'Approval Matrix & SLA',
+        'sla-config': 'SLA Configuration',
+        'reports-mis': 'Enterprise MIS Reporting Center',
+        'rep-availability': 'Locker Availability Register',
+        'rep-occupancy': 'Capacity Occupancy MIS',
+        'rep-arrears': 'Collection & Arrears Ageing',
+        'rep-access': 'Turnstile Access History Folio',
+        'rep-tat': 'Service Request TAT & SLA Compliance'
       };
       return titles[adminView] || 'Operations';
     }
@@ -327,15 +358,15 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Right Section: Quality Gate, Service Catalogue, Persona Switcher, Notifications & Profile */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           
-          {/* Quality Gate Launcher */}
+          {/* Quality Gate 12-Scenario Suite Launcher */}
           <button
-            onClick={() => setShowQualityGate(true)}
+            onClick={() => setIsQaSuiteOpen(true)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#16845B]/10 hover:bg-[#16845B]/15 text-[#16845B] border border-[#16845B]/30 rounded-lg transition-colors font-bold text-xs"
-            title="Inspect 10 E2E Banking Scenarios"
+            title="Inspect 12 E2E Banking Scenarios & Dual-Control Quality Gates"
           >
-            <Play className="w-3.5 h-3.5 text-[#16845B]" />
+            <Play className="w-3.5 h-3.5 text-[#16845B] fill-[#16845B]" />
             <span className="hidden sm:inline">Quality Gate</span>
-            <span className="font-mono text-[11px]">({passedScenarios}/10)</span>
+            <span className="font-mono text-[11px]">({passedScenarios}/{scenarios.length})</span>
           </button>
 
           {/* RBI Service Catalogue Modal */}
@@ -348,12 +379,12 @@ export const Header: React.FC<HeaderProps> = ({
             <span>Service Catalogue</span>
           </button>
 
-          {/* 6-Role Switcher Dropdown */}
+          {/* 10-Role Switcher Dropdown */}
           <div className="relative">
             <button
               onClick={() => setShowRoleMenu(!showRoleMenu)}
               className="flex items-center gap-2 px-2.5 py-1.5 bg-[#102544] text-white hover:bg-[#0B1730] rounded-lg text-xs font-bold transition-all shadow-xs"
-              title="Switch demo persona (Customer, Maker, Checker, Manager, HO Admin, Auditor)"
+              title="Switch demo persona (Customer, Maker, Checker, Custodian, Manager, Regional Mgr, HO Admin, Super Admin, CSE, Auditor)"
             >
               <ArrowRightLeft className="w-3.5 h-3.5 text-[#008C88] shrink-0" />
               <div className="flex flex-col text-left">
@@ -369,10 +400,10 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Persona Selection Menu */}
             {showRoleMenu && (
-              <div className="absolute right-0 mt-2 w-72 bg-white border border-[#E3E8F0] rounded-xl shadow-bank-dropdown z-50 overflow-hidden text-xs animate-in fade-in zoom-in-95">
+              <div className="absolute right-0 mt-2 w-80 bg-white border border-[#E3E8F0] rounded-xl shadow-bank-dropdown z-50 overflow-hidden text-xs animate-in fade-in zoom-in-95">
                 <div className="p-3 bg-[#F5F7FA] border-b border-[#E3E8F0] flex items-center justify-between">
                   <span className="font-bold text-[#102544] text-xs">Switch POC Persona</span>
-                  <span className="text-[10px] text-[#66758C] font-mono">6 Bank Roles</span>
+                  <span className="text-[10px] text-[#66758C] font-mono">10 Bank Roles</span>
                 </div>
                 <div className="p-1 divide-y divide-[#E3E8F0] max-h-80 overflow-y-auto">
                   {rolesConfig.map(rc => (

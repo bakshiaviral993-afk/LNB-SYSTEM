@@ -14,12 +14,12 @@ import {
   Shield,
   Layers,
   Sparkles,
-  Calendar
+  Calendar,
+  Info
 } from 'lucide-react';
 
 export const FindLocker: React.FC = () => {
   const { branches, lockers, applications, applyForLocker, setCustomerView, waitingList, joinWaitingList, setSelectedLockerId } = useBanking();
-
   const [activeTab, setActiveTab] = useState<'search' | 'calculator' | 'apply' | 'my-applications' | 'waiting-list'>('search');
   const [selectedCity, setSelectedCity] = useState<string>('All');
   const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
@@ -94,11 +94,10 @@ export const FindLocker: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      
       {/* Module Title & Sub-tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E3E8F0]">
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-[#102544]">
+          <h1 className="text-xl font-bold tracking-tight text-[#102544]">
             Locker Discovery & Allotment
           </h1>
           <p className="text-xs text-[#66758C] mt-0.5">
@@ -155,29 +154,28 @@ export const FindLocker: React.FC = () => {
       {activeTab === 'search' && (
         <div className="space-y-6">
           {/* Filter Bar */}
-          <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+          <div className="p-4 bg-white border border-[#E3E8F0] rounded-xl shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
             <div>
-              <label className="block font-medium text-slate-700 mb-1">City</label>
+              <label className="block font-medium text-[#17263C] mb-1">City</label>
               <select
                 value={selectedCity}
                 onChange={e => {
                   setSelectedCity(e.target.value);
                   setSelectedBranchId('all');
                 }}
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-medium text-[#17263C] focus:outline-none focus:border-[#2457A7] focus:bg-white transition-colors"
               >
                 {cities.map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
             </div>
-
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Branch</label>
+              <label className="block font-medium text-[#17263C] mb-1">Branch</label>
               <select
                 value={selectedBranchId}
                 onChange={e => setSelectedBranchId(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-medium text-[#17263C] focus:outline-none focus:border-[#2457A7] focus:bg-white transition-colors"
               >
                 <option value="all">All Branches</option>
                 {filteredBranches.map(b => (
@@ -185,13 +183,12 @@ export const FindLocker: React.FC = () => {
                 ))}
               </select>
             </div>
-
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Locker Size</label>
+              <label className="block font-medium text-[#17263C] mb-1">Locker Size</label>
               <select
                 value={selectedSize}
                 onChange={e => setSelectedSize(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-medium text-[#17263C] focus:outline-none focus:border-[#2457A7] focus:bg-white transition-colors"
               >
                 <option value="All">All Sizes</option>
                 <option value="Small">Small (Jewelry & Passbooks)</option>
@@ -200,16 +197,15 @@ export const FindLocker: React.FC = () => {
                 <option value="Extra Large">Extra Large (High Capacity)</option>
               </select>
             </div>
-
             <div className="flex items-end">
-              <label className="flex items-center gap-2 cursor-pointer p-2 bg-slate-50 border border-slate-200 rounded-lg w-full text-slate-700">
+              <label className="flex items-center gap-2 cursor-pointer h-9 px-3 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg w-full text-[#17263C] hover:bg-[#E3E8F0]/40 transition-colors">
                 <input
                   type="checkbox"
                   checked={availabilityOnly}
                   onChange={e => setAvailabilityOnly(e.target.checked)}
-                  className="rounded text-slate-900 focus:ring-slate-900"
+                  className="rounded text-[#102544] focus:ring-[#2457A7]"
                 />
-                <span className="font-medium">Show Vacant Units Only</span>
+                <span className="font-medium text-xs">Show Vacant Units Only</span>
               </label>
             </div>
           </div>
@@ -223,25 +219,25 @@ export const FindLocker: React.FC = () => {
                 <div
                   key={sz}
                   onClick={() => setSelectedSize(isSelected ? 'All' : sz)}
-                  className={`p-4 bg-white border rounded-xl cursor-pointer transition-all shadow-2xs ${
-                    isSelected ? 'border-slate-900 ring-2 ring-slate-900' : 'border-slate-200 hover:border-slate-300'
+                  className={`p-4 bg-white border rounded-xl cursor-pointer transition-all shadow-xs ${
+                    isSelected ? 'border-[#102544] ring-2 ring-[#102544]/20' : 'border-[#E3E8F0] hover:border-[#2457A7]'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">{sz}</span>
-                    <span className="text-xs font-mono font-bold text-emerald-700">
+                    <span className="text-xs font-bold text-[#102544] uppercase tracking-wider">{sz}</span>
+                    <span className="text-xs font-mono tabular-nums font-bold text-[#16845B]">
                       ₹{info.annualRent.toLocaleString('en-IN')}/yr
                     </span>
                   </div>
-                  <div className="text-[11px] font-mono text-slate-500 mt-1">
+                  <div className="text-[11px] font-mono text-[#66758C] mt-1">
                     Dim: {info.dimensions}
                   </div>
-                  <p className="text-[11px] text-slate-600 mt-2 line-clamp-2 leading-relaxed">
+                  <p className="text-[11px] text-[#66758C] mt-2 line-clamp-2 leading-relaxed">
                     {info.desc}
                   </p>
-                  <div className="pt-3 border-t border-slate-100 mt-3 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-400">Security FD: ₹{info.deposit.toLocaleString('en-IN')}</span>
-                    <span className="text-indigo-600 font-semibold">Filter →</span>
+                  <div className="pt-3 border-t border-[#E3E8F0] mt-3 flex items-center justify-between text-[11px]">
+                    <span className="text-[#66758C]">Security FD: <span className="font-mono tabular-nums">₹{info.deposit.toLocaleString('en-IN')}</span></span>
+                    <span className="text-[#2457A7] font-semibold">Filter →</span>
                   </div>
                 </div>
               );
@@ -249,13 +245,13 @@ export const FindLocker: React.FC = () => {
           </div>
 
           {/* Lockers Matrix Table */}
-          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="bg-white border border-[#E3E8F0] rounded-xl overflow-hidden shadow-xs">
+            <div className="px-5 py-4 border-b border-[#E3E8F0] flex items-center justify-between bg-white">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">
+                <h3 className="text-sm font-semibold text-[#102544]">
                   Vault Units & Compartments ({filteredLockers.length})
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-[#66758C]">
                   Instant allocation available for vacant units upon verification of linked savings account
                 </p>
               </div>
@@ -264,7 +260,7 @@ export const FindLocker: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                  <tr className="bg-[#F5F7FA] text-[#66758C] border-b border-[#E3E8F0]">
                     <th className="py-3 px-4 font-semibold">Locker #</th>
                     <th className="py-3 px-4 font-semibold">Branch & Location</th>
                     <th className="py-3 px-4 font-semibold">Size & Dimensions</th>
@@ -274,24 +270,24 @@ export const FindLocker: React.FC = () => {
                     <th className="py-3 px-4 font-semibold text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[#E3E8F0]">
                   {filteredLockers.map(lkr => (
-                    <tr key={lkr.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900">
+                    <tr key={lkr.id} className="hover:bg-[#F5F7FA]/75 transition-colors">
+                      <td className="py-3 px-4 font-mono tabular-nums font-bold text-[#102544]">
                         {lkr.lockerNumber}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="font-medium text-slate-900">{lkr.branchName}</div>
-                        <div className="text-[11px] text-slate-400">{lkr.floor} · {lkr.tier}</div>
+                        <div className="font-medium text-[#17263C]">{lkr.branchName}</div>
+                        <div className="text-[11px] text-[#66758C]">{lkr.floor} · {lkr.tier}</div>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="font-semibold text-slate-800">{lkr.size}</span>
-                        <div className="text-[11px] font-mono text-slate-400">{lkr.dimensions}</div>
+                        <span className="font-semibold text-[#17263C]">{lkr.size}</span>
+                        <div className="text-[11px] font-mono text-[#66758C]">{lkr.dimensions}</div>
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-medium text-slate-900">
+                      <td className="py-3 px-4 text-right font-mono tabular-nums font-medium text-[#102544]">
                         ₹{lkr.annualRent.toLocaleString('en-IN')}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-slate-600">
+                      <td className="py-3 px-4 text-right font-mono tabular-nums text-[#66758C]">
                         ₹{lkr.securityDeposit.toLocaleString('en-IN')}
                       </td>
                       <td className="py-3 px-4 text-center">
@@ -305,7 +301,7 @@ export const FindLocker: React.FC = () => {
                               setFormSize(lkr.size);
                               setActiveTab('apply');
                             }}
-                            className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors shadow-2xs"
+                            className="px-3 py-1.5 text-xs font-semibold text-white bg-[#102544] hover:bg-[#0B1730] rounded-lg transition-colors shadow-xs"
                           >
                             Apply Unit
                           </button>
@@ -316,7 +312,7 @@ export const FindLocker: React.FC = () => {
                               setWaitlistSuccessMsg(`Registered on waiting list (${code}) for ${lkr.size} locker at ${lkr.branchName}.`);
                               setActiveTab('waiting-list');
                             }}
-                            className="px-2.5 py-1 text-xs text-indigo-700 hover:text-indigo-900 font-semibold hover:underline"
+                            className="px-2.5 py-1 text-xs text-[#2457A7] hover:text-[#102544] font-semibold hover:underline"
                           >
                             Join Waitlist →
                           </button>
@@ -334,20 +330,20 @@ export const FindLocker: React.FC = () => {
       {/* TAB 2: RENT CALCULATOR */}
       {activeTab === 'calculator' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-5 text-xs">
+          <div className="lg:col-span-2 bg-white border border-[#E3E8F0] rounded-xl p-6 shadow-xs space-y-5 text-xs">
             <div>
-              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Calculator className="w-4 h-4 text-indigo-700" />
+              <h2 className="text-sm font-bold text-[#102544] flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-[#2457A7]" />
                 <span>Transparent Safe Deposit Tariff Calculator</span>
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[#66758C] mt-0.5">
                 Calculate total financial commitment as per Reserve Bank of India transparent pricing norms
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Select Size</label>
+                <label className="block font-medium text-[#17263C] mb-1">Select Size</label>
                 <div className="grid grid-cols-2 gap-2">
                   {(['Small', 'Medium', 'Large', 'Extra Large'] as LockerSize[]).map(sz => (
                     <button
@@ -355,11 +351,11 @@ export const FindLocker: React.FC = () => {
                       type="button"
                       onClick={() => setCalcSize(sz)}
                       className={`p-2.5 rounded-lg border text-left font-medium transition-colors ${
-                        calcSize === sz ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        calcSize === sz ? 'bg-[#102544] text-white border-[#102544]' : 'bg-[#F5F7FA] text-[#17263C] border-[#E3E8F0] hover:bg-[#E3E8F0]/50'
                       }`}
                     >
                       <div className="font-bold">{sz}</div>
-                      <div className="text-[11px] opacity-80 font-mono">₹{rentPricingMatrix[sz].annualRent}/yr</div>
+                      <div className="text-[11px] opacity-80 font-mono tabular-nums">₹{rentPricingMatrix[sz].annualRent.toLocaleString('en-IN')}/yr</div>
                     </button>
                   ))}
                 </div>
@@ -367,8 +363,8 @@ export const FindLocker: React.FC = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">
-                    Lease Tenure: <span className="font-bold text-slate-900 font-mono">{calcTenureYears} Year(s)</span>
+                  <label className="block font-medium text-[#17263C] mb-1">
+                    Lease Tenure: <span className="font-bold text-[#102544] font-mono tabular-nums">{calcTenureYears} Year(s)</span>
                   </label>
                   <input
                     type="range"
@@ -376,25 +372,25 @@ export const FindLocker: React.FC = () => {
                     max={3}
                     value={calcTenureYears}
                     onChange={e => setCalcTenureYears(parseInt(e.target.value))}
-                    className="w-full accent-slate-900"
+                    className="w-full accent-[#102544]"
                   />
-                  <div className="flex justify-between text-[11px] text-slate-400 mt-1">
+                  <div className="flex justify-between text-[11px] text-[#66758C] mt-1">
                     <span>1 Year</span>
                     <span>2 Years</span>
                     <span>3 Years (Max advance)</span>
                   </div>
                 </div>
 
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <div className="p-3 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg">
                   <label className="flex items-start gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={includeFdSecurity}
                       onChange={e => setIncludeFdSecurity(e.target.checked)}
-                      className="mt-0.5 rounded text-slate-900 focus:ring-slate-900"
+                      className="mt-0.5 rounded text-[#102544] focus:ring-[#2457A7]"
                     />
-                    <div className="text-[11px] text-slate-700">
-                      <span className="font-semibold block text-slate-900">Include Linked Term Deposit (Security Deposit)</span>
+                    <div className="text-[11px] text-[#66758C]">
+                      <span className="font-semibold block text-[#102544]">Include Linked Term Deposit (Security Deposit)</span>
                       As per RBI guidelines, banks may obtain a term deposit covering 3 years rent plus break-open charges to cover eventualities.
                     </div>
                   </label>
@@ -402,13 +398,13 @@ export const FindLocker: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-200 flex justify-end">
+            <div className="pt-4 border-t border-[#E3E8F0] flex justify-end">
               <button
                 onClick={() => {
                   setFormSize(calcSize);
                   setActiveTab('apply');
                 }}
-                className="px-5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors shadow-2xs flex items-center gap-1.5"
+                className="px-5 py-2 text-xs font-semibold text-white bg-[#102544] hover:bg-[#0B1730] rounded-lg transition-colors shadow-xs flex items-center gap-1.5"
               >
                 <span>Proceed to Apply for {calcSize} Locker</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -417,38 +413,36 @@ export const FindLocker: React.FC = () => {
           </div>
 
           {/* Pricing Receipt Summary Card */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 shadow-2xs space-y-4 text-xs">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 pb-2">
+          <div className="bg-[#F5F7FA] border border-[#E3E8F0] rounded-xl p-6 shadow-xs space-y-4 text-xs">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#66758C] border-b border-[#E3E8F0] pb-2">
               Initial Financial Outflow Estimate
             </h3>
-
             <div className="space-y-2.5">
               <div className="flex justify-between">
-                <span className="text-slate-600">Base Annual Rent ({calcTenureYears} yr)</span>
-                <span className="font-mono font-medium text-slate-900">₹{totalBaseRent.toLocaleString('en-IN')}</span>
+                <span className="text-[#66758C]">Base Annual Rent ({calcTenureYears} yr)</span>
+                <span className="font-mono tabular-nums font-medium text-[#102544]">₹{totalBaseRent.toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-600">GST @ 18%</span>
-                <span className="font-mono font-medium text-slate-900">₹{gstAmount.toLocaleString('en-IN')}</span>
+                <span className="text-[#66758C]">GST @ 18%</span>
+                <span className="font-mono tabular-nums font-medium text-[#102544]">₹{gstAmount.toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-600">e-Stamp Duty & Documentation</span>
-                <span className="font-mono font-medium text-slate-900">₹{stampDutyAndAgreement}</span>
+                <span className="text-[#66758C]">e-Stamp Duty & Documentation</span>
+                <span className="font-mono tabular-nums font-medium text-[#102544]">₹{stampDutyAndAgreement}</span>
               </div>
               {includeFdSecurity && (
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Fixed Deposit Security (Refundable)</span>
-                  <span className="font-mono font-medium text-slate-900">₹{securityDepositAmount.toLocaleString('en-IN')}</span>
+                  <span className="text-[#66758C]">Fixed Deposit Security (Refundable)</span>
+                  <span className="font-mono tabular-nums font-medium text-[#102544]">₹{securityDepositAmount.toLocaleString('en-IN')}</span>
                 </div>
               )}
-
-              <div className="pt-3 border-t border-slate-200 flex justify-between font-bold text-sm text-slate-900">
+              <div className="pt-3 border-t border-[#E3E8F0] flex justify-between font-bold text-sm text-[#102544]">
                 <span>Total Initial Outflow</span>
-                <span className="font-mono text-emerald-800">₹{totalPayableEstimate.toLocaleString('en-IN')}</span>
+                <span className="font-mono tabular-nums text-[#16845B]">₹{totalPayableEstimate.toLocaleString('en-IN')}</span>
               </div>
             </div>
 
-            <div className="p-3 bg-white border border-slate-200 rounded-lg text-[11px] text-slate-500 leading-relaxed">
+            <div className="p-3 bg-white border border-[#E3E8F0] rounded-lg text-[11px] text-[#66758C] leading-relaxed">
               * The security deposit continues to earn interest at prevailing bank term deposit rates (currently 7.10% p.a.). It is not an expenditure and is fully refundable upon locker surrender.
             </div>
           </div>
@@ -457,12 +451,12 @@ export const FindLocker: React.FC = () => {
 
       {/* TAB 3: APPLY FOR LOCKER */}
       {activeTab === 'apply' && (
-        <div className="max-w-3xl mx-auto bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-6 text-xs">
+        <div className="max-w-3xl mx-auto bg-white border border-[#E3E8F0] rounded-xl p-6 shadow-xs space-y-6 text-xs">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">
+            <h2 className="text-sm font-bold text-[#102544]">
               Application for Safe Deposit Locker Compartment
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-[#66758C] mt-0.5">
               Form L-101 as per Banking Regulation Act, 1949 and RBI Master Direction
             </p>
           </div>
@@ -470,11 +464,11 @@ export const FindLocker: React.FC = () => {
           <form onSubmit={handleApplySubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Target Branch</label>
+                <label className="block font-medium text-[#17263C] mb-1">Target Branch</label>
                 <select
                   value={formBranchId}
                   onChange={e => setFormBranchId(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-medium text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-medium text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 >
                   {branches.map(b => (
                     <option key={b.id} value={b.id}>
@@ -485,11 +479,11 @@ export const FindLocker: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Requested Locker Size</label>
+                <label className="block font-medium text-[#17263C] mb-1">Requested Locker Size</label>
                 <select
                   value={formSize}
                   onChange={e => setFormSize(e.target.value as LockerSize)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-medium text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-medium text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 >
                   <option value="Small">Small (₹2,500/yr)</option>
                   <option value="Medium">Medium (₹4,500/yr)</option>
@@ -499,11 +493,11 @@ export const FindLocker: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Operating Mandate</label>
+                <label className="block font-medium text-[#17263C] mb-1">Operating Mandate</label>
                 <select
                   value={formOperatingMode}
                   onChange={e => setFormOperatingMode(e.target.value as OperatingMode)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-medium text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-medium text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 >
                   <option value="Single">Single (Self Only)</option>
                   <option value="Either or Survivor">Either or Survivor (Joint Mandate)</option>
@@ -513,11 +507,11 @@ export const FindLocker: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Annual Income Bracket</label>
+                <label className="block font-medium text-[#17263C] mb-1">Annual Income Bracket</label>
                 <select
                   value={formIncome}
                   onChange={e => setFormIncome(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-medium text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-medium text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 >
                   <option value="₹10 Lakhs - ₹15 Lakhs">₹10 Lakhs - ₹15 Lakhs</option>
                   <option value="₹15 Lakhs - ₹25 Lakhs">₹15 Lakhs - ₹25 Lakhs</option>
@@ -527,70 +521,70 @@ export const FindLocker: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Primary Applicant Name</label>
+                <label className="block font-medium text-[#17263C] mb-1">Primary Applicant Name</label>
                 <input
                   type="text"
                   value={formCustomerName}
                   onChange={e => setFormCustomerName(e.target.value)}
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-medium text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-medium text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Customer CIF Number</label>
+                <label className="block font-medium text-[#17263C] mb-1">Customer CIF Number</label>
                 <input
                   type="text"
                   value={formCif}
                   disabled
-                  className="w-full bg-slate-100 border border-slate-200 rounded-lg p-2 font-mono text-slate-600"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-mono tabular-nums text-[#66758C] cursor-not-allowed"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">PAN Card Number</label>
+                <label className="block font-medium text-[#17263C] mb-1">PAN Card Number</label>
                 <input
                   type="text"
                   value={formPan}
                   disabled
-                  className="w-full bg-slate-100 border border-slate-200 rounded-lg p-2 font-mono text-slate-600"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-mono tabular-nums text-[#66758C] cursor-not-allowed"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Registered Phone</label>
+                <label className="block font-medium text-[#17263C] mb-1">Registered Phone</label>
                 <input
                   type="text"
                   value={formPhone}
                   onChange={e => setFormPhone(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Nominee Name (Form DA-1 Initial Declaration)</label>
+                <label className="block font-medium text-[#17263C] mb-1">Nominee Name (Form DA-1 Initial Declaration)</label>
                 <input
                   type="text"
                   value={formNominee}
                   onChange={e => setFormNominee(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Auto-Debit Linked Account</label>
+                <label className="block font-medium text-[#17263C] mb-1">Auto-Debit Linked Account</label>
                 <input
                   type="text"
                   value={formAccount}
                   disabled
-                  className="w-full bg-slate-100 border border-slate-200 rounded-lg p-2 text-slate-600 font-mono"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 text-[#66758C] font-mono tabular-nums cursor-not-allowed"
                 />
               </div>
             </div>
 
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 space-y-1">
+            <div className="p-3 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg text-[11px] text-[#66758C] space-y-1">
               <label className="flex items-start gap-2 cursor-pointer">
-                <input type="checkbox" required defaultChecked className="mt-0.5 rounded text-slate-900" />
+                <input type="checkbox" required defaultChecked className="mt-0.5 rounded text-[#102544] focus:ring-[#2457A7]" />
                 <span>
                   I/We agree to the Model Locker Agreement covenants, terms of safe custody, annual renewal auto-debit authority, and bank vault operational hours.
                 </span>
@@ -601,13 +595,13 @@ export const FindLocker: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('search')}
-                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+                className="px-4 py-2 text-[#66758C] hover:bg-[#F5F7FA] rounded-lg text-xs font-medium transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors shadow-2xs"
+                className="px-6 py-2 text-xs font-semibold text-white bg-[#102544] hover:bg-[#0B1730] rounded-lg transition-colors shadow-xs"
               >
                 Submit Locker Application
               </button>
@@ -620,12 +614,12 @@ export const FindLocker: React.FC = () => {
       {activeTab === 'my-applications' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-900">
+            <h3 className="text-sm font-bold text-[#102544]">
               Locker Application Status & History ({applications.length})
             </h3>
             <button
               onClick={() => setActiveTab('apply')}
-              className="text-xs text-indigo-700 font-semibold hover:underline"
+              className="text-xs text-[#2457A7] font-semibold hover:underline"
             >
               + New Application
             </button>
@@ -635,35 +629,35 @@ export const FindLocker: React.FC = () => {
             {applications.map(app => (
               <div
                 key={app.id}
-                className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs text-xs space-y-3"
+                className="p-4 bg-white border border-[#E3E8F0] rounded-xl shadow-xs text-xs space-y-3"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E3E8F0] pb-3">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono font-bold text-slate-900">{app.applicationNumber}</span>
-                    <span className="text-slate-400">·</span>
-                    <span className="font-semibold text-slate-800">{app.branchName}</span>
-                    <span className="text-slate-400">·</span>
-                    <span className="text-slate-600">{app.sizeRequested} Locker</span>
+                    <span className="font-mono tabular-nums font-bold text-[#102544]">{app.applicationNumber}</span>
+                    <span className="text-[#66758C]">·</span>
+                    <span className="font-semibold text-[#17263C]">{app.branchName}</span>
+                    <span className="text-[#66758C]">·</span>
+                    <span className="text-[#66758C]">{app.sizeRequested} Locker</span>
                   </div>
                   <StatusBadge status={app.status} />
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
                   <div>
-                    <span className="text-slate-400 block">Applicant</span>
-                    <span className="font-medium text-slate-800">{app.customerName}</span>
+                    <span className="text-[#66758C] block">Applicant</span>
+                    <span className="font-medium text-[#17263C]">{app.customerName}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Operating Mode</span>
-                    <span className="font-medium text-slate-800">{app.operatingMode}</span>
+                    <span className="text-[#66758C] block">Operating Mode</span>
+                    <span className="font-medium text-[#17263C]">{app.operatingMode}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Submitted Date</span>
-                    <span className="font-mono text-slate-800">{app.appliedDate}</span>
+                    <span className="text-[#66758C] block">Submitted Date</span>
+                    <span className="font-mono tabular-nums text-[#17263C]">{app.appliedDate}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Allotted Unit</span>
-                    <span className="font-mono font-bold text-emerald-700">
+                    <span className="text-[#66758C] block">Allotted Unit</span>
+                    <span className="font-mono tabular-nums font-bold text-[#16845B]">
                       {app.allottedLockerNumber || 'Pending Allotment'}
                     </span>
                   </div>
@@ -689,7 +683,7 @@ export const FindLocker: React.FC = () => {
                           if (app.allottedLockerId) setSelectedLockerId(app.allottedLockerId);
                           setCustomerView('visit');
                         }}
-                        className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded shadow-2xs flex items-center gap-1.5 text-xs"
+                        className="px-3.5 py-1.5 bg-[#102544] hover:bg-[#0B1730] text-white font-semibold rounded-lg shadow-xs flex items-center gap-1.5 text-xs transition-colors"
                       >
                         <Calendar className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Schedule Key Handover Appointment</span>
@@ -699,8 +693,8 @@ export const FindLocker: React.FC = () => {
                 )}
 
                 {app.notes && (
-                  <div className="p-2.5 bg-slate-50 rounded border border-slate-200 text-[11px] text-slate-600">
-                    <strong>Operations Note:</strong> {app.notes}
+                  <div className="p-2.5 bg-[#F5F7FA] rounded-lg border border-[#E3E8F0] text-[11px] text-[#66758C]">
+                    <strong className="text-[#17263C]">Operations Note:</strong> {app.notes}
                   </div>
                 )}
               </div>
@@ -715,32 +709,32 @@ export const FindLocker: React.FC = () => {
           {waitlistSuccessMsg && (
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-950 text-xs flex items-center justify-between">
               <span>{waitlistSuccessMsg}</span>
-              <button onClick={() => setWaitlistSuccessMsg(null)} className="font-bold text-slate-500">✕</button>
+              <button onClick={() => setWaitlistSuccessMsg(null)} className="font-bold text-[#66758C] hover:text-[#17263C]">✕</button>
             </div>
           )}
 
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 className="text-sm font-bold text-[#102544]">
                 Locker Waitlist Queue & Tracking ({waitingList.length})
               </h3>
-              <p className="text-slate-500 text-[11px]">
+              <p className="text-[#66758C] text-[11px]">
                 Under RBI rules, vacant lockers are allocated transparently to waitlisted customers in order of priority
               </p>
             </div>
             <button
               onClick={() => setActiveTab('search')}
-              className="text-xs text-indigo-700 font-semibold hover:underline"
+              className="text-xs text-[#2457A7] font-semibold hover:underline"
             >
               Browse Availability Grid →
             </button>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+          <div className="bg-white border border-[#E3E8F0] rounded-xl overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                  <tr className="bg-[#F5F7FA] text-[#66758C] border-b border-[#E3E8F0]">
                     <th className="py-3 px-4 font-semibold">Waitlist Code</th>
                     <th className="py-3 px-4 font-semibold">Branch Location</th>
                     <th className="py-3 px-4 font-semibold">Size Requested</th>
@@ -750,28 +744,28 @@ export const FindLocker: React.FC = () => {
                     <th className="py-3 px-4 font-semibold text-right">Priority Score</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[#E3E8F0]">
                   {waitingList.map(item => (
-                    <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900">
+                    <tr key={item.id} className="hover:bg-[#F5F7FA]/75 transition-colors">
+                      <td className="py-3 px-4 font-mono tabular-nums font-bold text-[#102544]">
                         {item.waitlistCode}
                       </td>
-                      <td className="py-3 px-4 font-medium text-slate-800">
+                      <td className="py-3 px-4 font-medium text-[#17263C]">
                         {item.branchName}
                       </td>
-                      <td className="py-3 px-4 font-semibold text-slate-900">
+                      <td className="py-3 px-4 font-semibold text-[#102544]">
                         {item.sizeRequested} Locker
                       </td>
-                      <td className="py-3 px-4 text-slate-700">
-                        {item.customerName} ({item.cifNumber})
+                      <td className="py-3 px-4 text-[#66758C]">
+                        <span className="text-[#17263C] font-medium">{item.customerName}</span> ({item.cifNumber})
                       </td>
-                      <td className="py-3 px-4 font-mono text-slate-600">
+                      <td className="py-3 px-4 font-mono tabular-nums text-[#66758C]">
                         {item.joinedDate}
                       </td>
                       <td className="py-3 px-4 text-center">
                         <StatusBadge status={item.status} size="sm" />
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
+                      <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-[#102544]">
                         {item.priorityScore}/100
                       </td>
                     </tr>
@@ -782,7 +776,6 @@ export const FindLocker: React.FC = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };

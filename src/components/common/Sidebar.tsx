@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useBanking } from '../../context/BankingContext';
 import {
   Shield,
@@ -25,8 +25,17 @@ import {
   Sliders,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Building2,
-  Lock
+  Lock,
+  LineChart,
+  Hammer,
+  Clock,
+  Layers,
+  FileSpreadsheet,
+  BadgeCheck,
+  DollarSign,
+  UserCheck
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -57,20 +66,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
     logout
   } = useBanking();
 
+  // Track collapsed groups in the enterprise sidebar
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({
+    'ADMINISTRATION': false,
+    'REPORTS & AUDIT': false
+  });
+
+  const toggleGroup = (grp: string) => {
+    setCollapsedGroups(prev => ({ ...prev, [grp]: !prev[grp] }));
+  };
+
   const unreadCount = notifications.filter(n => !n.read).length;
-  const pendingApps = applications.filter(a => a.status === 'Submitted' || a.status === 'KYC Verified' || a.status === 'Maker Verified').length;
+  const pendingApps = applications.filter(
+    a => a.status === 'Submitted' || a.status === 'KYC Verified' || a.status === 'Maker Verified'
+  ).length;
   const pendingVisits = appointments.filter(a => a.status === 'Confirmed' || a.status === 'Checked In').length;
   const openServiceReqs = serviceRequests.filter(s => s.status !== 'Resolved / Closed').length;
-  const overdueLockers = lockers.filter(l => l.customerId === 'cust-rahul-01' && (l.outstandingRent || 0) > 0).length;
+  const overdueLockers = lockers.filter(l => (l.outstandingRent || 0) > 0).length;
 
-  // Customer Navigation Groups
+  // Customer Self-Service Navigation Groups
   const customerNavGroups = [
     {
       group: 'Account & Portfolio',
       items: [
-        { id: 'dashboard', label: 'Portfolio Overview', icon: LayoutDashboard },
-        { id: 'find', label: 'Find & Apply Locker', icon: Search },
-        { id: 'visit', label: 'Schedule Visit', icon: Calendar, badge: pendingVisits > 0 ? `${pendingVisits} active` : undefined, badgeColor: 'bg-[#102544] text-white' },
+        { id: 'dashboard', label: 'Portfolio Overview', icon: LayoutDashboard, badge: undefined, badgeColor: undefined },
+        { id: 'find', label: 'Find & Apply Locker', icon: Search, badge: undefined, badgeColor: undefined },
+        { id: 'visit', label: 'Schedule Visit', icon: Calendar, badge: pendingVisits > 0 ? `${pendingVisits}` : undefined, badgeColor: 'bg-[#008C88] text-white' },
       ]
     },
     {
@@ -100,43 +121,77 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   ];
 
-  // Bank Staff / Administration Navigation Groups
-  const adminNavGroups = [
+  // Benchmark: SysArc SAFE Hierarchical Enterprise Navigation (6 Functional Groups)
+  const enterpriseStaffNavGroups = [
     {
-      group: 'Strongroom & Operations',
+      group: 'DASHBOARD',
       items: [
-        { id: 'admin-dashboard', label: 'Operations Overview', icon: LayoutDashboard },
-        { id: 'inventory', label: 'Vault Inventory & Grid', icon: Grid },
-        { id: 'visits', label: 'Visit Queue & Turnstile', icon: CalendarCheck, badge: pendingVisits > 0 ? `${pendingVisits}` : undefined, badgeColor: 'bg-[#008C88] text-white' },
+        { id: 'executive-dashboard', label: 'Executive Dashboard', icon: LineChart },
+        { id: 'admin-dashboard', label: 'Branch Operations Dashboard', icon: LayoutDashboard },
+        { id: 'customer-dashboard', label: 'Customer Dashboard', icon: Users },
       ]
     },
     {
-      group: 'Allotments & Approvals',
+      group: 'LOCKER OPERATIONS',
       items: [
-        { id: 'applications', label: 'Applications (M/C)', icon: FileCheck, badge: pendingApps > 0 ? `${pendingApps}` : undefined, badgeColor: 'bg-[#B7791F] text-white' },
-        { id: 'holders', label: 'Nominee Scrutiny', icon: Users },
-        { id: 'agreements', label: 'Agreement Administration', icon: FileText },
+        { id: 'inventory', label: 'Locker Inventory', icon: Grid },
+        { id: 'availability', label: 'Locker Availability', icon: Layers },
+        { id: 'applications', label: 'Locker Applications', icon: FileCheck, badge: pendingApps > 0 ? `${pendingApps}` : undefined, badgeColor: 'bg-[#B7791F] text-white' },
+        { id: 'waiting-list', label: 'Waiting List Register', icon: Clock },
+        { id: 'allotment', label: 'Locker Allotment (M/C)', icon: BadgeCheck },
+        { id: 'visits', label: 'Locker Access & Turnstile', icon: CalendarCheck, badge: pendingVisits > 0 ? `${pendingVisits}` : undefined, badgeColor: 'bg-[#008C88] text-white' },
+        { id: 'surrender-ops', label: 'Locker Surrender', icon: LogOut },
+        { id: 'break-open', label: 'Break-Open Management', icon: Hammer, badge: 'RBI', badgeColor: 'bg-[#C83E44] text-white' },
       ]
     },
     {
-      group: 'Servicing & Claims',
+      group: 'FINANCIAL MANAGEMENT',
       items: [
-        { id: 'billing', label: 'Billing & Auto-Debit', icon: CreditCard },
-        { id: 'requests', label: 'Service Requests Desk', icon: Wrench, badge: openServiceReqs > 0 ? `${openServiceReqs}` : undefined, badgeColor: 'bg-[#008C88] text-white' },
-        { id: 'claims', label: 'Deceased Claims Desk', icon: UserX },
-        { id: 'support', label: 'Ombudsman & Grievance', icon: AlertCircle },
+        { id: 'billing', label: 'Rent Management', icon: CreditCard },
+        { id: 'rent-collection', label: 'Rent Collection', icon: DollarSign },
+        { id: 'arrears', label: 'Outstanding Dues (Arrears)', icon: AlertCircle, badge: overdueLockers > 0 ? `${overdueLockers}` : undefined, badgeColor: 'bg-[#C83E44] text-white' },
+        { id: 'deposits', label: 'Security Deposits & Liens', icon: Lock },
+        { id: 'payment-recon', label: 'Payment Reconciliation', icon: FileSpreadsheet },
       ]
     },
     {
-      group: 'Governance & Controls',
+      group: 'CUSTOMER MANAGEMENT',
       items: [
-        { id: 'audit', label: 'Audit Trail & Controls', icon: ShieldCheck },
-        { id: 'administration', label: 'Administration Hub', icon: Sliders },
+        { id: 'customer-mgmt', label: 'Customer Portfolio', icon: Users },
+        { id: 'holders', label: 'Holders and Nominees', icon: UserCheck },
+        { id: 'mandates', label: 'Operating Mandates', icon: KeyRound },
+        { id: 'agreements', label: 'Agreements and KYC', icon: FileText },
+        { id: 'requests', label: 'Service Requests', icon: Wrench, badge: openServiceReqs > 0 ? `${openServiceReqs}` : undefined, badgeColor: 'bg-[#008C88] text-white' },
+        { id: 'claims', label: 'Claims and Complaints', icon: UserX },
+      ]
+    },
+    {
+      group: 'ADMINISTRATION',
+      items: [
+        { id: 'branch-master', label: 'Branch Master', icon: Building2 },
+        { id: 'locker-master', label: 'Locker Master', icon: Grid },
+        { id: 'rent-master', label: 'Rent and Charges Master', icon: DollarSign },
+        { id: 'user-mgmt', label: 'User Management', icon: Users },
+        { id: 'permissions', label: 'Role × Module Permissions', icon: ShieldCheck },
+        { id: 'approval-matrix', label: 'Approval Matrix', icon: BadgeCheck },
+        { id: 'sla-config', label: 'SLA Configuration', icon: Sliders },
+      ]
+    },
+    {
+      group: 'REPORTS & AUDIT',
+      items: [
+        { id: 'rep-availability', label: 'Locker Availability Report', icon: FileSpreadsheet },
+        { id: 'rep-occupancy', label: 'Occupancy MIS', icon: LineChart },
+        { id: 'rep-arrears', label: 'Collection and Arrears', icon: CreditCard },
+        { id: 'rep-access', label: 'Access History Folio', icon: History },
+        { id: 'rep-tat', label: 'Service Request TAT', icon: Clock },
+        { id: 'audit', label: 'Regulatory Audit Trail', icon: ShieldCheck },
+        { id: 'reports-mis', label: 'MIS Reporting Center', icon: FileSpreadsheet },
       ]
     }
   ];
 
-  const currentGroups = userRole === 'customer' ? customerNavGroups : adminNavGroups;
+  const currentGroups = userRole === 'customer' ? customerNavGroups : enterpriseStaffNavGroups;
 
   const handleSelectNav = (id: string) => {
     if (userRole === 'customer') {
@@ -191,7 +246,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!isCollapsed && (
             <button
               onClick={() => setIsCollapsed(true)}
-              className="hidden lg:flex p-1.5 text-[#66758C] hover:text-[#17263C] hover:bg-[#F5F7FA] rounded-lg transition-colors"
+              className="hidden lg:flex p-1.5 text-[#66758C] hover:text-[#17263C] hover:bg-[#F5F7FA] rounded-lg transition-colors cursor-pointer"
               title="Collapse sidebar"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -206,14 +261,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="w-8 h-8 mx-auto rounded-lg bg-[#102544]/10 text-[#102544] flex items-center justify-center text-[10px] font-bold font-mono"
               title={`Role: ${userRole.toUpperCase()}`}
             >
-              {userRole === 'customer' ? 'CST' : 'STF'}
+              {userRole === 'customer' ? 'CST' : 'OPS'}
             </div>
           ) : (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 overflow-hidden">
                 <span className="w-2 h-2 rounded-full bg-[#16845B]" />
                 <span className="text-[11px] font-bold text-[#17263C] uppercase tracking-wider truncate">
-                  {userRole === 'customer' ? 'Customer Self-Service' : 'Branch Operations'}
+                  {userRole === 'customer' ? 'Customer Portal' : 'Safe Operations'}
                 </span>
               </div>
               <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#102544] text-white font-bold shrink-0">
@@ -224,55 +279,73 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation Groups List */}
-        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
-          {currentGroups.map((grp, gIdx) => (
-            <div key={gIdx} className="space-y-1">
-              {!isCollapsed && (
-                <div className="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#66758C]">
-                  {grp.group}
-                </div>
-              )}
-              {grp.items.map(item => {
-                const active = isCurrentActive(item.id);
-                const IconComponent = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleSelectNav(item.id)}
-                    title={isCollapsed ? item.label : undefined}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all relative group ${
-                      active
-                        ? 'bg-[#102544] text-white shadow-xs'
-                        : 'text-[#66758C] hover:text-[#17263C] hover:bg-[#F5F7FA]'
-                    } ${isCollapsed ? 'justify-center' : 'justify-between'}`}
+        <div className="flex-1 overflow-y-auto px-2 py-2.5 space-y-3.5 scrollbar-thin">
+          {currentGroups.map((grp, gIdx) => {
+            const isGroupCollapsed = !!collapsedGroups[grp.group];
+            return (
+              <div key={gIdx} className="space-y-0.5">
+                {!isCollapsed && (
+                  <div
+                    onClick={() => toggleGroup(grp.group)}
+                    className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#66758C] flex items-center justify-between cursor-pointer hover:text-[#102544] transition-colors select-none"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <IconComponent
-                        className={`w-4 h-4 shrink-0 transition-colors ${
-                          active ? 'text-[#008C88]' : 'text-[#66758C] group-hover:text-[#17263C]'
+                    <span>{grp.group}</span>
+                    {userRole !== 'customer' && (
+                      <ChevronDown
+                        className={`w-3 h-3 text-[#66758C] transition-transform ${
+                          isGroupCollapsed ? '-rotate-90' : 'rotate-0'
                         }`}
                       />
-                      {!isCollapsed && <span className="truncate">{item.label}</span>}
-                    </div>
-
-                    {!isCollapsed && item.badge && (
-                      <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-mono shrink-0 ${
-                          item.badgeColor || 'bg-[#102544] text-white'
-                        }`}
-                      >
-                        {item.badge}
-                      </span>
                     )}
+                  </div>
+                )}
 
-                    {isCollapsed && item.badge && (
-                      <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#C83E44] ring-2 ring-white" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+                {(!isGroupCollapsed || isCollapsed) && (
+                  <div className="space-y-0.5">
+                    {grp.items.map(item => {
+                      const active = isCurrentActive(item.id);
+                      const IconComponent = item.icon;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleSelectNav(item.id)}
+                          title={isCollapsed ? item.label : undefined}
+                          className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all relative group cursor-pointer ${
+                            active
+                              ? 'bg-[#102544] text-white shadow-xs'
+                              : 'text-[#66758C] hover:text-[#17263C] hover:bg-[#F5F7FA]'
+                          } ${isCollapsed ? 'justify-center' : 'justify-between'}`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <IconComponent
+                              className={`w-4 h-4 shrink-0 transition-colors ${
+                                active ? 'text-[#008C88]' : 'text-[#66758C] group-hover:text-[#17263C]'
+                              }`}
+                            />
+                            {!isCollapsed && <span className="truncate text-[11.5px]">{item.label}</span>}
+                          </div>
+
+                          {!isCollapsed && item.badge && (
+                            <span
+                              className={`px-1.5 py-0.2 rounded text-[9.5px] font-bold font-mono shrink-0 ${
+                                item.badgeColor || 'bg-[#102544] text-white'
+                              }`}
+                            >
+                              {item.badge}
+                            </span>
+                          )}
+
+                          {isCollapsed && item.badge && (
+                            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#C83E44] ring-2 ring-white" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Footer Area with User Persona Lockup & Collapse Trigger */}
@@ -280,7 +353,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {isCollapsed ? (
             <button
               onClick={() => setIsCollapsed(false)}
-              className="w-full py-2 flex items-center justify-center text-[#66758C] hover:text-[#17263C] hover:bg-[#F5F7FA] rounded-lg transition-colors"
+              className="w-full py-2 flex items-center justify-center text-[#66758C] hover:text-[#17263C] hover:bg-[#F5F7FA] rounded-lg transition-colors cursor-pointer"
               title="Expand sidebar"
             >
               <ChevronRight className="w-5 h-5" />
@@ -301,7 +374,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               </div>
 
-              <div className="flex items-center justify-between text-[11px] text-[#66758C] pt-1 px-1">
+              <div className="flex items-center justify-between text-[11px] text-[#66758C] pt-0.5 px-1">
                 <span className="font-mono text-[10px]">National Bank SafeVault</span>
                 <span className="text-[10px] text-emerald-700 font-semibold">2FA Active</span>
               </div>

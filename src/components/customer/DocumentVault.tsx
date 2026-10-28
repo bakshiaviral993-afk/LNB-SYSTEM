@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useBanking } from '../../context/BankingContext';
 import { DocumentModal } from '../common/DocumentModal';
 import { StoredDocument } from '../../types';
+import { downloadDocumentFile } from '../../services/downloadService';
 import {
   FileText,
   Download,
@@ -183,9 +184,9 @@ export const DocumentVault: React.FC = () => {
                   <span>Preview</span>
                 </button>
                 <button
-                  onClick={() => alert(`Downloading verified copy of ${doc.documentRef}`)}
+                  onClick={() => downloadDocumentFile(doc)}
                   className="p-1.5 text-[#66758C] hover:text-[#17263C] hover:bg-[#F5F7FA] rounded-md border border-[#E3E8F0] transition-colors"
-                  title="Download File"
+                  title="Download Official Extract"
                 >
                   <Download className="w-3.5 h-3.5" />
                 </button>

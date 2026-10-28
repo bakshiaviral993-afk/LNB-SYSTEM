@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Download, Printer, CheckCircle2, ShieldCheck, FileText } from 'lucide-react';
 import { StoredDocument } from '../../types';
+import { downloadDocumentFile } from '../../services/downloadService';
 
 interface DocumentModalProps {
   document: StoredDocument | null;
@@ -24,11 +25,11 @@ export const DocumentModal: React.FC<DocumentModalProps> = ({ document, onClose 
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => alert(`Downloading signed copy for ${document.documentRef}`)}
+              onClick={() => downloadDocumentFile(document)}
               className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Download PDF</span>
+              <span>Download Extract</span>
             </button>
             <button
               onClick={() => window.print()}
@@ -71,13 +72,13 @@ export const DocumentModal: React.FC<DocumentModalProps> = ({ document, onClose 
             <div className="flex items-start justify-between border-b border-slate-200 pb-4">
               <div>
                 <div className="text-base font-extrabold tracking-tight text-slate-900">
-                  APEX NATIONAL BANK
+                  NATIONAL BANK
                 </div>
                 <div className="text-[11px] text-slate-500">
                   Safe Custody & Locker Operations Division · New Delhi
                 </div>
                 <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                  RBI Reg No: 04/9912 · IFSC: ANB000101 · CIN: L65110DL1982PLC012984
+                  RBI Reg No: 04/9912 · IFSC: NBIN000101 · CIN: L65110DL1982PLC012984
                 </div>
               </div>
               <div className="text-right">

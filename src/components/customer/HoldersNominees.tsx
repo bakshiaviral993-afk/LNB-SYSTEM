@@ -73,6 +73,7 @@ export const HoldersNominees: React.FC = () => {
   const [isOtpOpen, setIsOtpOpen] = useState(false);
   const [pendingOtpAction, setPendingOtpAction] = useState<'add-nominee' | 'cancel-nominee' | 'add-operator' | 'update-contact'>('add-nominee');
   const [targetNomineeIdToCancel, setTargetNomineeIdToCancel] = useState<string | null>(null);
+  const [contactSuccessMsg, setContactSuccessMsg] = useState<string | null>(null);
 
   const [viewDoc, setViewDoc] = useState<StoredDocument | null>(null);
 
@@ -139,7 +140,7 @@ export const HoldersNominees: React.FC = () => {
       setActiveTab('operators');
     } else if (pendingOtpAction === 'update-contact') {
       submitContactUpdate(contactMobile, contactEmail, contactAddress, contactReason);
-      alert('Contact update request submitted with 2FA verification. Awaiting branch operations approval.');
+      setContactSuccessMsg('Contact update request submitted with 2FA verification. Awaiting branch operations approval.');
     }
   };
 
@@ -189,6 +190,16 @@ export const HoldersNominees: React.FC = () => {
           </select>
         </div>
       </div>
+
+      {contactSuccessMsg && (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-[#16845B] rounded-xl flex items-center justify-between text-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-[#16845B] shrink-0" />
+            <span className="font-semibold">{contactSuccessMsg}</span>
+          </div>
+          <button onClick={() => setContactSuccessMsg(null)} className="text-xs underline hover:no-underline">Dismiss</button>
+        </div>
+      )}
 
       {/* Operating Mandate Banner */}
       <div className="p-5 bg-[#102544] text-white rounded-2xl shadow-bank-card border border-[#0B1730] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -268,53 +279,53 @@ export const HoldersNominees: React.FC = () => {
             {currentHolders.map(h => (
               <div
                 key={h.id}
-                className="p-5 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-4"
+                className="p-5 bg-white border border-[#E3E8F0] rounded-xl shadow-xs space-y-4"
               >
-                <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-start justify-between border-b border-[#E3E8F0] pb-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-slate-900">{h.name}</span>
+                      <span className="font-bold text-sm text-[#102544]">{h.name}</span>
                       {h.isPrimary ? (
-                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
+                        <span className="text-[10px] font-bold text-[#2457A7] bg-[#2457A7]/10 border border-[#2457A7]/20 px-2 py-0.5 rounded">
                           Primary Hirer
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+                        <span className="text-[10px] font-bold text-[#66758C] bg-[#F5F7FA] border border-[#E3E8F0] px-2 py-0.5 rounded">
                           Joint Hirer
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] text-slate-500">{h.relationship}</span>
+                    <span className="text-[11px] text-[#66758C]">{h.relationship}</span>
                   </div>
                   <StatusBadge status={h.kycStatus} size="sm" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-[11px]">
                   <div>
-                    <span className="text-slate-400 block">Bank CIF Number</span>
-                    <span className="font-mono font-medium text-slate-800">{h.cifNumber}</span>
+                    <span className="text-[#66758C] block">Bank CIF Number</span>
+                    <span className="font-mono tabular-nums font-medium text-[#17263C]">{h.cifNumber}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">PAN Number</span>
-                    <span className="font-mono font-medium text-slate-800">{h.panNumber}</span>
+                    <span className="text-[#66758C] block">PAN Number</span>
+                    <span className="font-mono tabular-nums font-medium text-[#17263C]">{h.panNumber}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Contact Phone</span>
-                    <span className="font-medium text-slate-800 flex items-center gap-1">
-                      <Phone className="w-3 h-3 text-slate-400" />
+                    <span className="text-[#66758C] block">Contact Phone</span>
+                    <span className="font-medium text-[#17263C] flex items-center gap-1 font-mono tabular-nums">
+                      <Phone className="w-3 h-3 text-[#66758C]" />
                       {h.phone}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Email Address</span>
-                    <span className="font-medium text-slate-800 truncate block">
+                    <span className="text-[#66758C] block">Email Address</span>
+                    <span className="font-medium text-[#17263C] truncate block">
                       {h.email}
                     </span>
                   </div>
                 </div>
 
-                <div className="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-100">
-                  <span className="text-slate-400 block mb-0.5">Registered Residential Address:</span>
+                <div className="text-[11px] text-[#66758C] bg-[#F5F7FA] p-2.5 rounded-lg border border-[#E3E8F0]">
+                  <span className="text-[#66758C] font-semibold block mb-0.5">Registered Residential Address:</span>
                   {h.address}
                 </div>
               </div>
@@ -328,10 +339,10 @@ export const HoldersNominees: React.FC = () => {
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-slate-900 text-sm">
+              <h3 className="font-bold text-[#102544] text-sm">
                 Permitted Authorized Operators & Power of Attorney (PoA)
               </h3>
-              <p className="text-slate-500 text-[11px]">
+              <p className="text-[#66758C] text-[11px]">
                 Registered individuals empowered to access safe custody compartments under legally certified mandates
               </p>
             </div>
@@ -339,59 +350,59 @@ export const HoldersNominees: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {currentOperators.length === 0 ? (
-              <div className="col-span-2 p-8 text-center bg-white border border-slate-200 rounded-xl space-y-2 text-slate-500">
-                <Shield className="w-8 h-8 text-slate-300 mx-auto" />
+              <div className="col-span-2 p-8 text-center bg-white border border-[#E3E8F0] rounded-xl space-y-2 text-[#66758C]">
+                <Shield className="w-8 h-8 text-[#66758C]/40 mx-auto" />
                 <p>No external authorized operator or Power of Attorney currently registered for Locker {currentLocker?.lockerNumber}.</p>
               </div>
             ) : (
               currentOperators.map(op => (
                 <div
                   key={op.id}
-                  className="p-5 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-3"
+                  className="p-5 bg-white border border-[#E3E8F0] rounded-xl shadow-xs space-y-3"
                 >
-                  <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-start justify-between border-b border-[#E3E8F0] pb-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-slate-900">{op.name}</span>
-                        <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">
+                        <span className="font-bold text-sm text-[#102544]">{op.name}</span>
+                        <span className="text-[10px] bg-[#F5F7FA] text-[#66758C] border border-[#E3E8F0] px-2 py-0.5 rounded font-medium">
                           {op.mandateType}
                         </span>
                       </div>
-                      <span className="text-[11px] text-slate-500 mt-0.5 block">{op.relationship}</span>
+                      <span className="text-[11px] text-[#66758C] mt-0.5 block">{op.relationship}</span>
                     </div>
                     <StatusBadge status={op.status} size="sm" />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
                     <div>
-                      <span className="text-slate-400 block">ID Proof</span>
-                      <span className="font-mono text-slate-800">{op.idProofType} ({op.idProofNumber})</span>
+                      <span className="text-[#66758C] block">ID Proof</span>
+                      <span className="font-mono tabular-nums text-[#17263C]">{op.idProofType} ({op.idProofNumber})</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block">Contact Phone</span>
-                      <span className="font-mono text-slate-800">{op.phone}</span>
+                      <span className="text-[#66758C] block">Contact Phone</span>
+                      <span className="font-mono tabular-nums text-[#17263C]">{op.phone}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block">Mandate Validity</span>
-                      <span className="font-mono text-slate-800">{op.validFrom} to {op.validTill}</span>
+                      <span className="text-[#66758C] block">Mandate Validity</span>
+                      <span className="font-mono tabular-nums text-[#17263C]">{op.validFrom} to {op.validTill}</span>
                     </div>
                     {op.poaRegistrationRef && (
                       <div>
-                        <span className="text-slate-400 block">PoA Registered Ref</span>
-                        <span className="font-mono text-slate-800 truncate block">{op.poaRegistrationRef}</span>
+                        <span className="text-[#66758C] block">PoA Registered Ref</span>
+                        <span className="font-mono tabular-nums text-[#17263C] truncate block">{op.poaRegistrationRef}</span>
                       </div>
                     )}
                   </div>
 
                   {op.status === 'Active' && (
-                    <div className="pt-2 border-t border-slate-100 flex justify-end">
+                    <div className="pt-2 border-t border-[#E3E8F0] flex justify-end">
                       <button
                         onClick={() => {
                           if (confirm(`Revoke authorized operator mandate for ${op.name}?`)) {
                             revokeAuthorizedOperator(activeLockerId, op.id);
                           }
                         }}
-                        className="text-rose-600 hover:text-rose-800 font-semibold hover:underline"
+                        className="text-[#C83E44] hover:text-[#C83E44]/80 font-semibold text-xs hover:underline"
                       >
                         Revoke Authorization
                       </button>
@@ -403,30 +414,29 @@ export const HoldersNominees: React.FC = () => {
           </div>
 
           {/* Add Operator Form Box */}
-          <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
-            <h4 className="font-bold text-slate-900 text-xs">
+          <div className="p-5 bg-[#F5F7FA] border border-[#E3E8F0] rounded-xl space-y-4">
+            <h4 className="font-bold text-[#102544] text-xs">
               Register New Power of Attorney (PoA) or Authorized Representative
             </h4>
-
-            <form onSubmit={handleOperatorSubmit} className="space-y-3">
+            <form onSubmit={handleOperatorSubmit} className="space-y-3 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">Operator Legal Name</label>
+                  <label className="block text-[#17263C] font-medium mb-1">Operator Legal Name</label>
                   <input
                     type="text"
                     value={opName}
                     onChange={e => setOpName(e.target.value)}
                     placeholder="Full Legal Name"
                     required
-                    className="w-full bg-white border border-slate-300 rounded p-1.5 text-slate-800"
+                    className="w-full h-9 bg-white border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] focus:border-[#2457A7] focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">Mandate Type</label>
+                  <label className="block text-[#17263C] font-medium mb-1">Mandate Type</label>
                   <select
                     value={opMandate}
                     onChange={e => setOpMandate(e.target.value as AuthorizedOperator['mandateType'])}
-                    className="w-full bg-white border border-slate-300 rounded p-1.5 text-slate-800"
+                    className="w-full h-9 bg-white border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] focus:border-[#2457A7] focus:outline-none"
                   >
                     <option value="Power of Attorney (PoA)">Power of Attorney (PoA)</option>
                     <option value="Authorized Representative">Authorized Representative</option>
@@ -434,47 +444,47 @@ export const HoldersNominees: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">PoA Registry Serial #</label>
+                  <label className="block text-[#17263C] font-medium mb-1">PoA Registry Serial #</label>
                   <input
                     type="text"
                     value={opPoaRef}
                     onChange={e => setOpPoaRef(e.target.value)}
                     placeholder="e.g. POA/DEL/2026/0491"
-                    className="w-full bg-white border border-slate-300 rounded p-1.5 text-slate-800 font-mono"
+                    className="w-full h-9 bg-white border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-mono tabular-nums focus:border-[#2457A7] focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">ID Proof Number</label>
+                  <label className="block text-[#17263C] font-medium mb-1">ID Proof Number</label>
                   <input
                     type="text"
                     value={opIdNum}
                     onChange={e => setOpIdNum(e.target.value)}
                     placeholder="Aadhaar / Passport / PAN"
                     required
-                    className="w-full bg-white border border-slate-300 rounded p-1.5 text-slate-800 font-mono"
+                    className="w-full h-9 bg-white border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-mono tabular-nums focus:border-[#2457A7] focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">Operator Mobile</label>
+                  <label className="block text-[#17263C] font-medium mb-1">Operator Mobile</label>
                   <input
                     type="text"
                     value={opPhone}
                     onChange={e => setOpPhone(e.target.value)}
                     required
-                    className="w-full bg-white border border-slate-300 rounded p-1.5 text-slate-800"
+                    className="w-full h-9 bg-white border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-mono tabular-nums focus:border-[#2457A7] focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">Mandate Valid Till</label>
+                  <label className="block text-[#17263C] font-medium mb-1">Mandate Valid Till</label>
                   <input
                     type="date"
                     value={opValidTill}
                     onChange={e => setOpValidTill(e.target.value)}
                     required
-                    className="w-full bg-white border border-slate-300 rounded p-1.5 text-slate-800 font-mono"
+                    className="w-full h-9 bg-white border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-mono tabular-nums focus:border-[#2457A7] focus:outline-none"
                   />
                 </div>
               </div>
@@ -482,7 +492,7 @@ export const HoldersNominees: React.FC = () => {
               <div className="pt-1 flex justify-end">
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-slate-900 text-white font-semibold rounded hover:bg-slate-800 shadow-2xs"
+                  className="px-4 py-2 bg-[#102544] text-white font-semibold rounded-lg hover:bg-[#0B1730] shadow-xs text-xs transition-colors"
                 >
                   Submit Operator Mandate with 2FA
                 </button>
@@ -499,17 +509,17 @@ export const HoldersNominees: React.FC = () => {
             {currentNominees.map(nom => (
               <div
                 key={nom.id}
-                className="p-5 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-4"
+                className="p-5 bg-white border border-[#E3E8F0] rounded-xl shadow-xs space-y-4 text-xs"
               >
-                <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-start justify-between border-b border-[#E3E8F0] pb-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-slate-900">{nom.name}</span>
-                      <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded font-mono">
+                      <span className="font-bold text-sm text-[#102544]">{nom.name}</span>
+                      <span className="text-[10px] bg-[#2457A7]/10 text-[#2457A7] border border-[#2457A7]/20 px-2 py-0.5 rounded font-mono">
                         {nom.relationship}
                       </span>
                     </div>
-                    <span className="text-[11px] text-slate-400 font-mono mt-0.5 block">
+                    <span className="text-[11px] text-[#66758C] font-mono tabular-nums mt-0.5 block">
                       Form DA-1 Ref: {nom.formDa1Reference}
                     </span>
                   </div>
@@ -518,43 +528,42 @@ export const HoldersNominees: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-3 text-[11px]">
                   <div>
-                    <span className="text-slate-400 block">Date of Birth</span>
-                    <span className="font-mono font-medium text-slate-800">{nom.dateOfBirth}</span>
+                    <span className="text-[#66758C] block">Date of Birth</span>
+                    <span className="font-mono tabular-nums font-medium text-[#17263C]">{nom.dateOfBirth}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Minor Status</span>
-                    <span className="font-medium text-slate-800">
+                    <span className="text-[#66758C] block">Minor Status</span>
+                    <span className="font-medium text-[#17263C]">
                       {nom.isMinor ? 'Minor (Guardian Assigned)' : 'Major (Adult)'}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Contact</span>
-                    <span className="font-medium text-slate-800">{nom.phone}</span>
+                    <span className="text-[#66758C] block">Contact</span>
+                    <span className="font-medium font-mono tabular-nums text-[#17263C]">{nom.phone}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block">Registration Date</span>
-                    <span className="font-mono text-slate-800">{nom.registeredOn}</span>
+                    <span className="text-[#66758C] block">Registration Date</span>
+                    <span className="font-mono tabular-nums text-[#17263C]">{nom.registeredOn}</span>
                   </div>
                 </div>
 
-                <div className="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-100">
-                  <span className="text-slate-400 block mb-0.5">Nominee Address:</span>
+                <div className="text-[11px] text-[#66758C] bg-[#F5F7FA] p-2.5 rounded-lg border border-[#E3E8F0]">
+                  <span className="text-[#66758C] font-semibold block mb-0.5">Nominee Address:</span>
                   {nom.address}
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <div className="pt-2 border-t border-[#E3E8F0] flex items-center justify-between">
                   <button
                     onClick={() => openFormDa1Doc(nom.formDa1Reference)}
-                    className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 hover:underline"
+                    className="text-xs font-semibold text-[#2457A7] hover:text-[#102544] flex items-center gap-1 hover:underline"
                   >
                     <FileText className="w-3.5 h-3.5" />
                     <span>View Form DA-1</span>
                   </button>
-
                   {nom.status === 'Registered' && (
                     <button
                       onClick={() => handleCancelNomineeClick(nom.id)}
-                      className="text-rose-600 hover:text-rose-800 font-semibold text-[11px] hover:underline"
+                      className="text-[#C83E44] hover:text-[#C83E44]/80 font-semibold text-[11px] hover:underline"
                     >
                       Cancel Nomination (Form DA-2)
                     </button>
@@ -568,12 +577,12 @@ export const HoldersNominees: React.FC = () => {
 
       {/* TAB 4: ADD NOMINEE FORM */}
       {activeTab === 'add-nominee' && (
-        <div className="max-w-2xl mx-auto bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-5">
+        <div className="max-w-2xl mx-auto bg-white border border-[#E3E8F0] rounded-xl p-6 shadow-xs space-y-5 text-xs">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">
+            <h3 className="text-sm font-bold text-[#102544]">
               Form DA-1 (Nomination under Section 45ZA of the Banking Regulation Act, 1949)
             </h3>
-            <p className="text-slate-500 mt-0.5 text-[11px]">
+            <p className="text-[#66758C] mt-0.5 text-[11px]">
               Nominate an individual to receive safe deposit locker contents in the event of hirer death
             </p>
           </div>
@@ -581,23 +590,23 @@ export const HoldersNominees: React.FC = () => {
           <form onSubmit={handleNomineeSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Nominee Full Legal Name</label>
+                <label className="block font-medium text-[#17263C] mb-1">Nominee Full Legal Name</label>
                 <input
                   type="text"
                   placeholder="e.g. Shalini Sharma"
                   value={nomName}
                   onChange={e => setNomName(e.target.value)}
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-medium text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-medium text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Relationship with Hirer</label>
+                <label className="block font-medium text-[#17263C] mb-1">Relationship with Hirer</label>
                 <select
                   value={nomRel}
                   onChange={e => setNomRel(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-medium text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-medium text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 >
                   <option value="Spouse">Spouse</option>
                   <option value="Son">Son</option>
@@ -610,35 +619,35 @@ export const HoldersNominees: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Date of Birth</label>
+                <label className="block font-medium text-[#17263C] mb-1">Date of Birth</label>
                 <input
                   type="date"
                   value={nomDob}
                   onChange={e => setNomDob(e.target.value)}
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-mono tabular-nums text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Contact Phone Number</label>
+                <label className="block font-medium text-[#17263C] mb-1">Contact Phone Number</label>
                 <input
                   type="text"
                   value={nomPhone}
                   onChange={e => setNomPhone(e.target.value)}
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-mono tabular-nums focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
+              <label className="flex items-center gap-2 cursor-pointer font-medium text-[#17263C]">
                 <input
                   type="checkbox"
                   checked={nomIsMinor}
                   onChange={e => setNomIsMinor(e.target.checked)}
-                  className="rounded text-slate-900"
+                  className="rounded text-[#102544] focus:ring-[#2457A7]"
                 />
                 <span>Nominee is a Minor (Under 18 Years)</span>
               </label>
@@ -646,7 +655,7 @@ export const HoldersNominees: React.FC = () => {
 
             {nomIsMinor && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
-                <label className="block font-medium text-amber-900">
+                <label className="block font-medium text-amber-900 text-xs">
                   Guardian Name & Details (Mandatory for minor nominees)
                 </label>
                 <input
@@ -655,19 +664,19 @@ export const HoldersNominees: React.FC = () => {
                   value={nomGuardianName}
                   onChange={e => setNomGuardianName(e.target.value)}
                   required={nomIsMinor}
-                  className="w-full bg-white border border-amber-300 rounded-lg p-2 text-slate-800"
+                  className="w-full h-9 bg-white border border-amber-300 rounded-lg px-3 text-[#17263C] text-xs focus:outline-none"
                 />
               </div>
             )}
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Nominee Residential Address</label>
+              <label className="block font-medium text-[#17263C] mb-1">Nominee Residential Address</label>
               <textarea
                 rows={2}
                 value={nomAddress}
                 onChange={e => setNomAddress(e.target.value)}
                 required
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800"
+                className="w-full bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg p-2.5 text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
               />
             </div>
 
@@ -675,13 +684,13 @@ export const HoldersNominees: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('nominees')}
-                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+                className="px-4 py-2 text-[#66758C] hover:bg-[#F5F7FA] rounded-lg text-xs font-medium transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 shadow-2xs"
+                className="px-6 py-2 bg-[#102544] text-white font-semibold rounded-lg hover:bg-[#0B1730] shadow-xs text-xs transition-colors"
               >
                 Submit Form DA-1 Nomination
               </button>
@@ -692,12 +701,12 @@ export const HoldersNominees: React.FC = () => {
 
       {/* TAB 5: CONTACT DETAILS UPDATE */}
       {activeTab === 'contact-update' && (
-        <div className="max-w-2xl mx-auto bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-5">
+        <div className="max-w-2xl mx-auto bg-white border border-[#E3E8F0] rounded-xl p-6 shadow-xs space-y-5 text-xs">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">
+            <h3 className="text-sm font-bold text-[#102544]">
               Update Registered Contact & Correspondence Particulars
             </h3>
-            <p className="text-slate-500 mt-0.5 text-[11px]">
+            <p className="text-[#66758C] mt-0.5 text-[11px]">
               Requires mandatory 2FA OTP step-up verification and branch custodian sign-off on Core Banking System (CBS)
             </p>
           </div>
@@ -705,53 +714,53 @@ export const HoldersNominees: React.FC = () => {
           <form onSubmit={handleContactSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block font-medium text-slate-700 mb-1">New Mobile Number</label>
+                <label className="block font-medium text-[#17263C] mb-1">New Mobile Number</label>
                 <input
                   type="text"
                   value={contactMobile}
                   onChange={e => setContactMobile(e.target.value)}
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-mono tabular-nums text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">New Email Address</label>
+                <label className="block font-medium text-[#17263C] mb-1">New Email Address</label>
                 <input
                   type="email"
                   value={contactEmail}
                   onChange={e => setContactEmail(e.target.value)}
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800"
+                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">New Correspondence Address</label>
+              <label className="block font-medium text-[#17263C] mb-1">New Correspondence Address</label>
               <textarea
                 rows={3}
                 value={contactAddress}
                 onChange={e => setContactAddress(e.target.value)}
                 required
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800"
+                className="w-full bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg p-2.5 text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Reason for Change</label>
+              <label className="block font-medium text-[#17263C] mb-1">Reason for Change</label>
               <input
                 type="text"
                 value={contactReason}
                 onChange={e => setContactReason(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800"
+                className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
               />
             </div>
 
             <div className="pt-2 flex justify-end">
               <button
                 type="submit"
-                className="px-6 py-2 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 shadow-2xs"
+                className="px-6 py-2 bg-[#102544] text-white font-semibold rounded-lg hover:bg-[#0B1730] shadow-xs text-xs transition-colors"
               >
                 Authorize Contact Update with 2FA
               </button>

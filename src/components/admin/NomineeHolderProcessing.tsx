@@ -14,8 +14,9 @@ import {
 } from 'lucide-react';
 
 export const NomineeHolderProcessing: React.FC = () => {
-  const { nominees, adminApproveNominee, adminRejectNominee, lockers, documents } = useBanking();
+  const { nominees, adminCheckerApproveNominee, adminRejectNominee, lockers, documents } = useBanking();
   const [viewDoc, setViewDoc] = useState<StoredDocument | null>(null);
+  const [nomineeError, setNomineeError] = useState<string | null>(null);
 
   // Flatten all nominees across lockers
   const allNomineesList: { lockerId: string; lockerNum: string; nominee: Nominee }[] = [];
@@ -31,6 +32,14 @@ export const NomineeHolderProcessing: React.FC = () => {
   });
 
   const pendingNominees = allNomineesList.filter(n => n.nominee.status === 'Pending Approval');
+
+  const handleApproveNominee = (nomineeId: string, lockerId: string) => {
+    setNomineeError(null);
+    const result = adminCheckerApproveNominee(nomineeId, lockerId);
+    if (result && !result.success) {
+      setNomineeError(result.error || 'Maker-checker approval failed.');
+    }
+  };
 
   const openFormDa1 = (ref: string) => {
     const doc = documents.find(d => d.documentRef === ref) || {
@@ -86,6 +95,16 @@ export const NomineeHolderProcessing: React.FC = () => {
         </div>
 
         <div className="p-5">
+          {nomineeError && (
+            <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-[#C83E44] flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-[#C83E44] shrink-0" />
+                <span className="font-semibold">{nomineeError}</span>
+              </div>
+              <button onClick={() => setNomineeError(null)} className="text-xs hover:underline">Dismiss</button>
+            </div>
+          )}
+
           {pendingNominees.length === 0 ? (
             <div className="p-8 text-center bg-[#F5F7FA] rounded-xl border border-dashed border-[#E3E8F0]">
               <CheckCircle2 className="w-8 h-8 text-[#16845B] mx-auto mb-2 opacity-80" />
@@ -133,7 +152,7 @@ export const NomineeHolderProcessing: React.FC = () => {
                       Reject
                     </button>
                     <button
-                      onClick={() => adminApproveNominee(item.nominee.id, item.lockerId)}
+                      onClick={() => handleApproveNominee(item.nominee.id, item.lockerId)}
                       className="px-4 py-1.5 bg-[#102544] hover:bg-[#0B1730] text-white rounded-lg font-semibold text-xs shadow-xs transition-colors"
                     >
                       Approve & Endorse

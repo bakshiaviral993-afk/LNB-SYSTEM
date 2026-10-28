@@ -6,6 +6,7 @@ import { StoredDocument } from '../../types';
 import {
   XCircle,
   AlertTriangle,
+  AlertCircle,
   CheckCircle2,
   Calendar,
   Key,
@@ -32,14 +33,16 @@ export const LockerClosure: React.FC = () => {
   const [isOtpOpen, setIsOtpOpen] = useState(false);
   const [initiatedTicket, setInitiatedTicket] = useState<string | null>(null);
   const [viewDoc, setViewDoc] = useState<StoredDocument | null>(null);
+  const [closureError, setClosureError] = useState<string | null>(null);
 
   const targetLocker = lockers.find(l => l.id === targetLockerId) || customerLockers[0];
   const hasDues = (targetLocker?.outstandingRent || 0) > 0;
 
   const handleClosureClick = (e: React.FormEvent) => {
     e.preventDefault();
+    setClosureError(null);
     if (hasDues) {
-      alert('Please settle outstanding renewal dues before initiating formal locker surrender.');
+      setClosureError('Please settle outstanding renewal dues before initiating formal locker surrender.');
       return;
     }
     setIsOtpOpen(true);
@@ -82,6 +85,16 @@ export const LockerClosure: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {closureError && (
+        <div className="p-3.5 bg-rose-50 border border-rose-200 text-[#C83E44] rounded-xl flex items-center justify-between text-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-[#C83E44] shrink-0" />
+            <span className="font-semibold">{closureError}</span>
+          </div>
+          <button onClick={() => setClosureError(null)} className="text-xs underline hover:no-underline">Dismiss</button>
+        </div>
+      )}
 
       {initiatedTicket ? (
         <div className="max-w-2xl mx-auto bg-white border border-emerald-200/80 rounded-xl p-6 shadow-bank-card space-y-4">

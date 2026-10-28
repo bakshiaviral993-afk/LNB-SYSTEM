@@ -21,14 +21,21 @@ export const VisitManagement: React.FC = () => {
   const [searchToken, setSearchToken] = useState('');
   const [completeModalApt, setCompleteModalApt] = useState<Appointment | null>(null);
   const [custodianRemarks, setCustodianRemarks] = useState('Routine custody operation. Master key #1 & Hirer key #2 engaged. Compartment verified closed.');
+  const [scanMsg, setScanMsg] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
 
   const handleSimulatedScan = () => {
     const unconfirmed = appointments.find(a => a.status === 'Confirmed');
     if (unconfirmed) {
       adminCheckInAppointment(unconfirmed.id);
-      alert(`Scanned Token #${unconfirmed.tokenNumber} for ${unconfirmed.customerName} (Locker ${unconfirmed.lockerNumber}). Visitor Checked-In successfully.`);
+      setScanMsg({
+        text: `Scanned Token #${unconfirmed.tokenNumber} for ${unconfirmed.customerName} (Locker ${unconfirmed.lockerNumber}). Visitor Checked-In successfully.`,
+        type: 'success'
+      });
     } else {
-      alert('No pending confirmed appointment ready for scan.');
+      setScanMsg({
+        text: 'No pending confirmed appointment ready for scan.',
+        type: 'info'
+      });
     }
   };
 
@@ -69,6 +76,18 @@ export const VisitManagement: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {scanMsg && (
+        <div className={`p-3.5 rounded-xl border flex items-center justify-between text-xs animate-in fade-in ${
+          scanMsg.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-[#16845B]' : 'bg-[#F5F7FA] border-[#E3E8F0] text-[#102544]'
+        }`}>
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span className="font-semibold">{scanMsg.text}</span>
+          </div>
+          <button onClick={() => setScanMsg(null)} className="text-xs underline hover:no-underline">Dismiss</button>
+        </div>
+      )}
 
       {/* Quick QR Scanner Bar */}
       <div className="p-4 bg-[#102544] text-white rounded-xl shadow-bank-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[#0B1730]">

@@ -10,7 +10,8 @@ import {
   Key,
   Shield,
   Search,
-  UserCheck
+  UserCheck,
+  AlertTriangle
 } from 'lucide-react';
 
 export const ApplicationManagement: React.FC = () => {
@@ -31,6 +32,7 @@ export const ApplicationManagement: React.FC = () => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [specificUnit, setSpecificUnit] = useState('');
   const [makerNotes, setMakerNotes] = useState('KYC documents, CBS signature card, and linked FD verified by Maker.');
+  const [checkerError, setCheckerError] = useState<string | null>(null);
 
   const vacantUnits = lockers.filter(
     l => l.branchId === selectedApp?.branchId && l.size === selectedApp?.sizeRequested && l.status === 'Vacant'
@@ -38,16 +40,22 @@ export const ApplicationManagement: React.FC = () => {
 
   const handleMakerVerify = () => {
     if (!selectedApp) return;
+    setCheckerError(null);
     adminMakerVerifyApplication(selectedApp.id, makerNotes);
   };
 
   const handleCheckerApprove = () => {
     if (!selectedApp) return;
-    adminCheckerApproveApplication(selectedApp.id, specificUnit || undefined);
+    setCheckerError(null);
+    const result = adminCheckerApproveApplication(selectedApp.id, specificUnit || undefined);
+    if (result && !result.success) {
+      setCheckerError(result.error || 'Dual-control authorization failed.');
+    }
   };
 
   const handleReject = () => {
     if (!selectedApp) return;
+    setCheckerError(null);
     adminRejectApplication(selectedApp.id, rejectReason || 'Incomplete KYC documentation');
     setShowRejectModal(false);
   };
@@ -278,6 +286,16 @@ export const ApplicationManagement: React.FC = () => {
                       <span className="w-5 h-5 rounded-full bg-[#102544] text-white flex items-center justify-center font-bold text-[10px]">2</span>
                       <h4 className="font-bold text-[#102544] text-xs">Branch Checker Allotment Authorization</h4>
                     </div>
+
+                    {checkerError && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-[#C83E44] flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                        <div className="text-xs">
+                          <span className="font-bold block">Security Rule Violation</span>
+                          <span>{checkerError}</span>
+                        </div>
+                      </div>
+                    )}
                     
                     <div>
                       <label className="block font-semibold text-[#17263C] mb-1 text-xs">
