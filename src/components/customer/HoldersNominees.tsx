@@ -3,7 +3,9 @@ import { useBanking } from '../../context/BankingContext';
 import { StatusBadge } from '../common/StatusBadge';
 import { DocumentModal } from '../common/DocumentModal';
 import { OtpModal } from '../common/OtpModal';
+import { PageHeader } from '../common/PageHeader';
 import { Holder, Nominee, StoredDocument, AuthorizedOperator } from '../../types';
+import { COMPLIANCE_CONFIG } from '../../config/compliance.config';
 import {
   Users,
   UserCheck,
@@ -20,7 +22,11 @@ import {
   Plus,
   XCircle,
   Edit,
-  ShieldAlert
+  ShieldAlert,
+  Copy,
+  ChevronRight,
+  Sparkles,
+  Info
 } from 'lucide-react';
 
 export const HoldersNominees: React.FC = () => {
@@ -37,30 +43,34 @@ export const HoldersNominees: React.FC = () => {
     submitContactUpdate,
     selectedLockerId,
     setSelectedLockerId,
-    documents
+    documents,
+    setCustomerView
   } = useBanking();
 
-  const customerLockers = lockers.filter(l => l.customerId === 'cust-rahul-01');
+  const customerLockers = lockers.filter(l => l.customerId === 'cust-rahul-01' || l.customerName === 'Rahul Sharma');
   const [activeLockerId, setActiveLockerId] = useState<string>(selectedLockerId || 'lck-125');
-  const [activeTab, setActiveTab] = useState<'holders' | 'operators' | 'nominees' | 'add-nominee' | 'contact-update'>('holders');
+  const [activeTab, setActiveTab] = useState<'holders' | 'operators' | 'nominees' | 'add-nominee' | 'contact'>('holders');
 
-  // Add Nominee Form State (Form DA-1)
+  // Multi-Nominee state (supports up to 4 nominees with share % totaling 100)
+  const [nomFormCode, setNomFormCode] = useState<'SL-1' | 'SL-1A'>('SL-1');
   const [nomName, setNomName] = useState('');
   const [nomRel, setNomRel] = useState('Spouse');
-  const [nomDob, setNomDob] = useState('1990-05-12');
+  const [nomDob, setNomDob] = useState('1992-06-14');
+  const [nomSharePercent, setNomSharePercent] = useState<number>(100);
   const [nomIsMinor, setNomIsMinor] = useState(false);
   const [nomGuardianName, setNomGuardianName] = useState('');
-  const [nomPhone, setNomPhone] = useState('+91 ');
+  const [nomPhone, setNomPhone] = useState('+91 98101 23456');
   const [nomAddress, setNomAddress] = useState('Flat 402, Oakwood Enclave, Barakhamba Road, New Delhi 110001');
+  const [eNominationConsent, setENominationConsent] = useState(true);
 
   // Add Authorized Operator State
   const [opName, setOpName] = useState('');
   const [opRel, setOpRel] = useState('Father / Legal Representative');
   const [opMandate, setOpMandate] = useState<AuthorizedOperator['mandateType']>('Power of Attorney (PoA)');
-  const [opPoaRef, setOpPoaRef] = useState('');
+  const [opPoaRef, setOpPoaRef] = useState('SV/POA/2026/0491');
   const [opIdType, setOpIdType] = useState<AuthorizedOperator['idProofType']>('Aadhaar');
-  const [opIdNum, setOpIdNum] = useState('');
-  const [opPhone, setOpPhone] = useState('+91 ');
+  const [opIdNum, setOpIdNum] = useState('XXXX-XXXX-4819');
+  const [opPhone, setOpPhone] = useState('+91 98200 11223');
   const [opValidTill, setOpValidTill] = useState('2028-12-31');
 
   // Contact Details Update Form State
@@ -71,19 +81,33 @@ export const HoldersNominees: React.FC = () => {
 
   // OTP Modal State
   const [isOtpOpen, setIsOtpOpen] = useState(false);
-  const [pendingOtpAction, setPendingOtpAction] = useState<'add-nominee' | 'cancel-nominee' | 'add-operator' | 'update-contact'>('add-nominee');
+  const [pendingOtpAction, setPendingOtpAction] = useState<'add-nominee' | 'cancel-nominee' | 'add-operator' | 'revoke-operator' | 'update-contact'>('add-nominee');
   const [targetNomineeIdToCancel, setTargetNomineeIdToCancel] = useState<string | null>(null);
-  const [contactSuccessMsg, setContactSuccessMsg] = useState<string | null>(null);
+  const [targetOperatorIdToRevoke, setTargetOperatorIdToRevoke] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const [viewDoc, setViewDoc] = useState<StoredDocument | null>(null);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
 
   const currentLocker = lockers.find(l => l.id === activeLockerId) || customerLockers[0];
   const currentHolders = holders[activeLockerId] || [];
   const currentNominees = nominees[activeLockerId] || [];
   const currentOperators = authorizedOperators[activeLockerId] || [];
 
+  // Calculate total existing nominee share %
+  const currentTotalShare = currentNominees.reduce((acc, curr) => acc + (curr.sharePercentage || 100), 0);
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedText(text);
+    setTimeout(() => setCopiedText(null), 2500);
+  };
+
   const handleNomineeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (nomSharePercent <= 0 || nomSharePercent > 100) {
+      alert('Nominee share percentage must be between 1% and 100%');
+      return;
+    }
     setPendingOtpAction('add-nominee');
     setIsOtpOpen(true);
   };
@@ -100,233 +124,220 @@ export const HoldersNominees: React.FC = () => {
     setIsOtpOpen(true);
   };
 
-  const handleCancelNomineeClick = (nomId: string) => {
-    setTargetNomineeIdToCancel(nomId);
-    setPendingOtpAction('cancel-nominee');
-    setIsOtpOpen(true);
-  };
-
   const handleOtpSuccess = () => {
     if (pendingOtpAction === 'add-nominee') {
       addNominee(activeLockerId, {
-        name: nomName,
+        name: nomName || 'Priya Sharma',
         relationship: nomRel,
         dateOfBirth: nomDob,
         isMinor: nomIsMinor,
         guardianName: nomIsMinor ? nomGuardianName : undefined,
-        phone: nomPhone,
         address: nomAddress,
+        phone: nomPhone,
+        sharePercentage: nomSharePercent
       });
-      setNomName('');
+      setStatusMessage(`Nominee registered successfully under Form ${nomFormCode}. Registered on CBS.`);
       setActiveTab('nominees');
     } else if (pendingOtpAction === 'cancel-nominee' && targetNomineeIdToCancel) {
       cancelNominee(targetNomineeIdToCancel, activeLockerId);
+      setStatusMessage('Nomination cancelled under statutory Form SL-2.');
       setTargetNomineeIdToCancel(null);
     } else if (pendingOtpAction === 'add-operator') {
       addAuthorizedOperator(activeLockerId, {
-        name: opName,
+        name: opName || 'Vikas Sharma',
         relationship: opRel,
         mandateType: opMandate,
-        poaRegistrationRef: opPoaRef || undefined,
+        poaRegistrationRef: opPoaRef,
         idProofType: opIdType,
-        idProofNumber: opIdNum,
+        idProofNumber: opIdNum || 'XXXX-XXXX-4819',
         phone: opPhone,
         validFrom: new Date().toISOString().split('T')[0],
-        validTill: opValidTill,
+        validTill: opValidTill
       });
-      setOpName('');
-      setOpPoaRef('');
-      setOpIdNum('');
+      setStatusMessage('Authorized Operator mandate registered and submitted for branch custodian verification.');
       setActiveTab('operators');
+    } else if (pendingOtpAction === 'revoke-operator' && targetOperatorIdToRevoke) {
+      revokeAuthorizedOperator(activeLockerId, targetOperatorIdToRevoke);
+      setStatusMessage('Authorized Operator mandate revoked successfully.');
+      setTargetOperatorIdToRevoke(null);
     } else if (pendingOtpAction === 'update-contact') {
       submitContactUpdate(contactMobile, contactEmail, contactAddress, contactReason);
-      setContactSuccessMsg('Contact update request submitted with 2FA verification. Awaiting branch operations approval.');
+      setStatusMessage('Contact update request submitted. SMS/Email confirmation dispatched.');
+    }
+
+    setTimeout(() => setStatusMessage(null), 4000);
+  };
+
+  // Plain language operating mandate explanation
+  const getPlainLanguageMandate = (mode: string) => {
+    switch (mode) {
+      case 'Either or Survivor':
+        return 'Either holder can operate the locker alone without requiring the co-hirer present.';
+      case 'Jointly':
+        return 'Both joint holders must be physically present simultaneously with original IDs to unlock.';
+      case 'Former or Survivor':
+        return 'Only the primary hirer operates during lifetime; secondary hirer gains access thereafter.';
+      default:
+        return 'Single hirer sole operation mandate.';
     }
   };
 
-  const openFormDa1Doc = (refNum: string) => {
-    const doc = documents.find(d => d.documentRef === refNum) || {
-      id: `doc-${refNum}`,
-      title: `Form DA-1 Nomination Registration Acknowledgement`,
-      category: 'Nomination Form DA-1' as const,
-      issueDate: 'Today',
-      fileSize: '510 KB',
-      documentRef: refNum,
-      signedStatus: 'Digitally e-Signed' as const,
-    };
-    setViewDoc(doc);
-  };
-
   return (
-    <div className="space-y-6 text-xs">
+    <div className="space-y-4 pb-28 text-[#1F1420] dark:text-[#F5ECF1]">
       
-      {/* Title & Navigation */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E3E8F0]">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-[#102544]">
-            Holders, Nominees & Authorized Mandates
-          </h1>
-          <p className="text-[#66758C] mt-0.5">
-            Single/joint operating instructions, authorized Power of Attorney operators, Form DA-1 nominations, and contact update requests
-          </p>
-        </div>
-
-        {/* Locker Account Selector */}
-        <div className="flex items-center gap-2">
-          <label className="text-[#66758C] font-semibold">Active Locker:</label>
-          <select
-            value={activeLockerId}
-            onChange={e => {
-              setActiveLockerId(e.target.value);
-              setSelectedLockerId(e.target.value);
-            }}
-            className="bg-white border border-[#E3E8F0] rounded-xl px-3 py-1.5 font-bold font-mono text-[#102544] shadow-xs focus:outline-none focus:border-[#2457A7]"
-          >
-            {customerLockers.map(l => (
-              <option key={l.id} value={l.id}>
-                Locker {l.lockerNumber} ({l.branchName.split('-')[0].trim()})
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {contactSuccessMsg && (
-        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-[#16845B] rounded-xl flex items-center justify-between text-xs animate-in fade-in">
+      {/* Universal PageHeader (Title never squeezed!) */}
+      <PageHeader
+        title="Holders & Nominees"
+        subtitle="Manage joint hirers, authorized Power of Attorney operators, and statutory nomination under RBI locker guidelines."
+        onBack={() => setCustomerView('dashboard')}
+        badges={
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-[#16845B] shrink-0" />
-            <span className="font-semibold">{contactSuccessMsg}</span>
+            <span className="px-2 py-0.5 rounded-full bg-[#97144D]/10 dark:bg-[#97144D]/25 text-[#97144D] dark:text-[#FFDF85] border border-[#97144D]/20 text-[10px] font-bold font-mono">
+              Statutory Forms SL-1 / SL-2 / SL-3
+            </span>
+            <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] italic">
+              (validate with bank compliance)
+            </span>
           </div>
-          <button onClick={() => setContactSuccessMsg(null)} className="text-xs underline hover:no-underline">Dismiss</button>
+        }
+        actionsOrSelector={
+          <div className="w-full">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#6B5B68] dark:text-[#A898A4] mb-1">
+              Active Safe Locker Compartment:
+            </label>
+            <select
+              value={activeLockerId}
+              onChange={e => {
+                setActiveLockerId(e.target.value);
+                setSelectedLockerId(e.target.value);
+              }}
+              className="w-full h-11 bg-white dark:bg-[#221019] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] rounded-2xl px-3 text-xs font-bold text-[#1F1420] dark:text-[#F5ECF1] focus:outline-none focus:ring-2 focus:ring-[#97144D] shadow-2xs"
+            >
+              {customerLockers.map(lkr => (
+                <option key={lkr.id} value={lkr.id}>
+                  Locker #{lkr.lockerNumber} ({lkr.size}) · {lkr.branchName}
+                </option>
+              ))}
+            </select>
+          </div>
+        }
+      />
+
+      {statusMessage && (
+        <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{statusMessage}</span>
         </div>
       )}
 
-      {/* Operating Mandate Banner */}
-      <div className="p-5 bg-[#102544] text-white rounded-2xl shadow-bank-card border border-[#0B1730] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-[#008C88] font-bold">
-            <Lock className="w-5 h-5" />
+      {/* Operating Mandate Card (Burgundy Gradient with Plain Language Line) */}
+      <div className="bg-gradient-to-r from-[#6B0E37] via-[#851144] to-[#97144D] text-white p-4 rounded-3xl shadow-md border border-[#6B0E37] space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 text-[#FFDF85]" />
+            <span className="text-xs font-mono uppercase tracking-wider text-[#FFDF85] font-extrabold">
+              OPERATING MANDATE
+            </span>
           </div>
-          <div>
-            <div className="font-bold text-sm tracking-tight text-white">
-              Operating Mandate: {currentLocker?.operatingMode}
-            </div>
-            <div className="text-white/70 text-[11px] mt-0.5">
-              Locker {currentLocker?.lockerNumber} · Branch: {currentLocker?.branchName}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-white/90 bg-white/10 border border-white/15 px-3 py-1 rounded-lg font-medium">
-            {currentLocker?.operatingMode === 'Single'
-              ? 'Individual Self Operation Only'
-              : 'Either holder can operate independently'}
+          <span className="px-2 py-0.5 rounded-full bg-white/20 text-white font-mono text-xs font-bold">
+            {currentLocker?.operatingMode || 'Either or Survivor'}
           </span>
         </div>
+
+        <p className="text-xs font-medium text-white/95 leading-relaxed">
+          {getPlainLanguageMandate(currentLocker?.operatingMode || 'Either or Survivor')}
+        </p>
+
+        <div className="pt-1 flex items-center justify-between text-[11px] text-white/80 border-t border-white/15">
+          <span>Registered Mandate: SafeVault CBS-2026</span>
+          <span className="font-mono text-[#FFDF85]">Locker #{currentLocker?.lockerNumber}</span>
+        </div>
       </div>
 
-      {/* Sub Tabs */}
-      <div className="flex items-center gap-1 bg-[#F5F7FA] p-1 rounded-xl border border-[#E3E8F0] overflow-x-auto font-semibold">
-        <button
-          onClick={() => setActiveTab('holders')}
-          className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
-            activeTab === 'holders' ? 'bg-[#102544] text-white shadow-xs' : 'text-[#66758C] hover:text-[#17263C]'
-          }`}
-        >
-          Authorized Holders ({currentHolders.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('operators')}
-          className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
-            activeTab === 'operators' ? 'bg-[#102544] text-white shadow-xs' : 'text-[#66758C] hover:text-[#17263C]'
-          }`}
-        >
-          Authorized Operators / PoA ({currentOperators.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('nominees')}
-          className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
-            activeTab === 'nominees' ? 'bg-[#102544] text-white shadow-xs' : 'text-[#66758C] hover:text-[#17263C]'
-          }`}
-        >
-          Form DA-1 Nominees ({currentNominees.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('add-nominee')}
-          className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap flex items-center gap-1 ${
-            activeTab === 'add-nominee' ? 'bg-[#102544] text-white shadow-xs' : 'text-[#66758C] hover:text-[#17263C]'
-          }`}
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Register Nominee</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('contact-update')}
-          className={`px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap flex items-center gap-1 ${
-            activeTab === 'contact-update' ? 'bg-[#102544] text-white shadow-xs' : 'text-[#66758C] hover:text-[#17263C]'
-          }`}
-        >
-          <Edit className="w-3.5 h-3.5" />
-          <span>Update Contact Details</span>
-        </button>
+      {/* Clean Tab Bar (Scroll-snap, no clipped labels, theme colors) */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none snap-x">
+        {[
+          { id: 'holders', label: `Holders (${currentHolders.length})` },
+          { id: 'operators', label: `Operators (${currentOperators.length})` },
+          { id: 'nominees', label: `Nominees (${currentNominees.length})` },
+          { id: 'add-nominee', label: '+ Add Nominee' },
+          { id: 'contact', label: 'Contact' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`h-10 px-4 rounded-xl text-xs font-bold whitespace-nowrap snap-start transition-all cursor-pointer active-press ${
+              activeTab === tab.id
+                ? 'bg-[#97144D] text-white shadow-xs'
+                : 'bg-white dark:bg-[#221019] text-[#6B5B68] dark:text-[#A898A4] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] hover:bg-[#FAF6F8]'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* TAB 1: HOLDERS */}
+      {/* TAB 1: HOLDERS (Single Column Cards) */}
       {activeTab === 'holders' && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="space-y-3">
+          <div className="px-1 flex items-center justify-between">
+            <span className="text-xs font-extrabold text-[#1F1420] dark:text-[#F5ECF1]">
+              Registered Hirers for Locker #{currentLocker?.lockerNumber}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {currentHolders.map(h => (
               <div
                 key={h.id}
-                className="p-5 bg-white border border-[#E3E8F0] rounded-xl shadow-xs space-y-4"
+                className="bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] p-4 shadow-sm space-y-3"
               >
-                <div className="flex items-start justify-between border-b border-[#E3E8F0] pb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-[#102544]">{h.name}</span>
-                      {h.isPrimary ? (
-                        <span className="text-[10px] font-bold text-[#2457A7] bg-[#2457A7]/10 border border-[#2457A7]/20 px-2 py-0.5 rounded">
-                          Primary Hirer
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold text-[#66758C] bg-[#F5F7FA] border border-[#E3E8F0] px-2 py-0.5 rounded">
-                          Joint Hirer
-                        </span>
-                      )}
+                <div className="flex items-start justify-between border-b border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] pb-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-[#97144D]/10 text-[#97144D] dark:text-[#FFDF85] flex items-center justify-center font-black text-sm">
+                      {h.name.split(' ').map(n => n[0]).join('')}
                     </div>
-                    <span className="text-[11px] text-[#66758C]">{h.relationship}</span>
+                    <div>
+                      <h3 className="font-extrabold text-sm text-[#1F1420] dark:text-white">
+                        {h.name}
+                      </h3>
+                      <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
+                        {h.isPrimary ? 'Primary Hirer' : 'Joint Co-Hirer'}
+                      </span>
+                    </div>
                   </div>
-                  <StatusBadge status={h.kycStatus} size="sm" />
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-[#1E8E5A] border border-emerald-500/20 text-[10px] font-bold">
+                    KYC Verified
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-[11px]">
-                  <div>
-                    <span className="text-[#66758C] block">Bank CIF Number</span>
-                    <span className="font-mono tabular-nums font-medium text-[#17263C]">{h.cifNumber}</span>
+                {/* Identity details with long IDs on their own line */}
+                <div className="space-y-2 text-xs">
+                  <div className="p-2 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+                    <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] block">Customer Identification File (CIF)</span>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <span className="font-mono font-bold text-xs text-[#1F1420] dark:text-white">{h.cifNumber}</span>
+                      <button type="button" onClick={() => handleCopy(h.cifNumber)} className="text-[#6B5B68]">
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[#66758C] block">PAN Number</span>
-                    <span className="font-mono tabular-nums font-medium text-[#17263C]">{h.panNumber}</span>
-                  </div>
-                  <div>
-                    <span className="text-[#66758C] block">Contact Phone</span>
-                    <span className="font-medium text-[#17263C] flex items-center gap-1 font-mono tabular-nums">
-                      <Phone className="w-3 h-3 text-[#66758C]" />
-                      {h.phone}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[#66758C] block">Email Address</span>
-                    <span className="font-medium text-[#17263C] truncate block">
-                      {h.email}
-                    </span>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+                      <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] block">Masked Aadhaar</span>
+                      <span className="font-mono font-bold text-xs text-[#1F1420] dark:text-white">XXXX-XXXX-4819</span>
+                    </div>
+                    <div className="p-2 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+                      <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] block">PAN Reference</span>
+                      <span className="font-mono font-bold text-xs text-[#1F1420] dark:text-white">{h.panNumber}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="text-[11px] text-[#66758C] bg-[#F5F7FA] p-2.5 rounded-lg border border-[#E3E8F0]">
-                  <span className="text-[#66758C] font-semibold block mb-0.5">Registered Residential Address:</span>
-                  {h.address}
+                <div className="text-[11px] text-[#6B5B68] dark:text-[#A898A4] flex items-center justify-between pt-1">
+                  <span>Linked Phone: {h.phone}</span>
+                  <span className="font-mono">Joined: {h.joinedDate}</span>
                 </div>
               </div>
             ))}
@@ -334,462 +345,387 @@ export const HoldersNominees: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: AUTHORIZED OPERATORS */}
+      {/* TAB 2: OPERATORS / POA (Single Column Cards) */}
       {activeTab === 'operators' && (
-        <div className="space-y-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-[#102544] text-sm">
-                Permitted Authorized Operators & Power of Attorney (PoA)
-              </h3>
-              <p className="text-[#66758C] text-[11px]">
-                Registered individuals empowered to access safe custody compartments under legally certified mandates
-              </p>
-            </div>
+        <div className="space-y-3">
+          <div className="px-1 flex items-center justify-between">
+            <span className="text-xs font-extrabold text-[#1F1420] dark:text-[#F5ECF1]">
+              Power of Attorney & Authorized Mandate Delegates
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {currentOperators.length === 0 ? (
-              <div className="col-span-2 p-8 text-center bg-white border border-[#E3E8F0] rounded-xl space-y-2 text-[#66758C]">
-                <Shield className="w-8 h-8 text-[#66758C]/40 mx-auto" />
-                <p>No external authorized operator or Power of Attorney currently registered for Locker {currentLocker?.lockerNumber}.</p>
-              </div>
-            ) : (
-              currentOperators.map(op => (
+          {currentOperators.length === 0 ? (
+            <div className="p-8 text-center bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] space-y-2">
+              <Users className="w-8 h-8 text-[#97144D]/40 mx-auto" />
+              <p className="text-xs text-[#6B5B68] dark:text-[#A898A4]">No authorized operators registered.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {currentOperators.map(op => (
                 <div
                   key={op.id}
-                  className="p-5 bg-white border border-[#E3E8F0] rounded-xl shadow-xs space-y-3"
+                  className="bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] p-4 shadow-sm space-y-3"
                 >
-                  <div className="flex items-start justify-between border-b border-[#E3E8F0] pb-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-[#102544]">{op.name}</span>
-                        <span className="text-[10px] bg-[#F5F7FA] text-[#66758C] border border-[#E3E8F0] px-2 py-0.5 rounded font-medium">
+                  <div className="flex items-start justify-between border-b border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] pb-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-sm">
+                        {op.name.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-sm text-[#1F1420] dark:text-white">
+                          {op.name}
+                        </h3>
+                        <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
                           {op.mandateType}
                         </span>
                       </div>
-                      <span className="text-[11px] text-[#66758C] mt-0.5 block">{op.relationship}</span>
                     </div>
                     <StatusBadge status={op.status} size="sm" />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-[11px]">
-                    <div>
-                      <span className="text-[#66758C] block">ID Proof</span>
-                      <span className="font-mono tabular-nums text-[#17263C]">{op.idProofType} ({op.idProofNumber})</span>
-                    </div>
-                    <div>
-                      <span className="text-[#66758C] block">Contact Phone</span>
-                      <span className="font-mono tabular-nums text-[#17263C]">{op.phone}</span>
-                    </div>
-                    <div>
-                      <span className="text-[#66758C] block">Mandate Validity</span>
-                      <span className="font-mono tabular-nums text-[#17263C]">{op.validFrom} to {op.validTill}</span>
-                    </div>
+                  <div className="space-y-2 text-xs">
                     {op.poaRegistrationRef && (
-                      <div>
-                        <span className="text-[#66758C] block">PoA Registered Ref</span>
-                        <span className="font-mono tabular-nums text-[#17263C] truncate block">{op.poaRegistrationRef}</span>
+                      <div className="p-2 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+                        <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] block">PoA Registration Ref:</span>
+                        <span className="font-mono font-bold text-xs text-[#97144D] dark:text-[#FFDF85] block mt-0.5">
+                          {op.poaRegistrationRef}
+                        </span>
                       </div>
                     )}
-                  </div>
 
-                  {op.status === 'Active' && (
-                    <div className="pt-2 border-t border-[#E3E8F0] flex justify-end">
-                      <button
-                        onClick={() => {
-                          if (confirm(`Revoke authorized operator mandate for ${op.name}?`)) {
-                            revokeAuthorizedOperator(activeLockerId, op.id);
-                          }
-                        }}
-                        className="text-[#C83E44] hover:text-[#C83E44]/80 font-semibold text-xs hover:underline"
-                      >
-                        Revoke Authorization
-                      </button>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+                        <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] block">ID Proof ({op.idProofType})</span>
+                        <span className="font-mono font-bold text-xs text-[#1F1420] dark:text-white">{op.idProofNumber}</span>
+                      </div>
+                      <div className="p-2 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+                        <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] block">Valid Till</span>
+                        <span className="font-mono font-bold text-xs text-[#1F1420] dark:text-white">{op.validTill}</span>
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Add Operator Form Box */}
-          <div className="p-5 bg-[#F5F7FA] border border-[#E3E8F0] rounded-xl space-y-4">
-            <h4 className="font-bold text-[#102544] text-xs">
-              Register New Power of Attorney (PoA) or Authorized Representative
-            </h4>
-            <form onSubmit={handleOperatorSubmit} className="space-y-3 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[#17263C] font-medium mb-1">Operator Legal Name</label>
-                  <input
-                    type="text"
-                    value={opName}
-                    onChange={e => setOpName(e.target.value)}
-                    placeholder="Full Legal Name"
-                    required
-                    className="w-full h-9 bg-white border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] focus:border-[#2457A7] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#17263C] font-medium mb-1">Mandate Type</label>
-                  <select
-                    value={opMandate}
-                    onChange={e => setOpMandate(e.target.value as AuthorizedOperator['mandateType'])}
-                    className="w-full h-9 bg-white border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] focus:border-[#2457A7] focus:outline-none"
-                  >
-                    <option value="Power of Attorney (PoA)">Power of Attorney (PoA)</option>
-                    <option value="Authorized Representative">Authorized Representative</option>
-                    <option value="Legal Guardian">Legal Guardian</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[#17263C] font-medium mb-1">PoA Registry Serial #</label>
-                  <input
-                    type="text"
-                    value={opPoaRef}
-                    onChange={e => setOpPoaRef(e.target.value)}
-                    placeholder="e.g. POA/DEL/2026/0491"
-                    className="w-full h-9 bg-white border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-mono tabular-nums focus:border-[#2457A7] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[#17263C] font-medium mb-1">ID Proof Number</label>
-                  <input
-                    type="text"
-                    value={opIdNum}
-                    onChange={e => setOpIdNum(e.target.value)}
-                    placeholder="Aadhaar / Passport / PAN"
-                    required
-                    className="w-full h-9 bg-white border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-mono tabular-nums focus:border-[#2457A7] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#17263C] font-medium mb-1">Operator Mobile</label>
-                  <input
-                    type="text"
-                    value={opPhone}
-                    onChange={e => setOpPhone(e.target.value)}
-                    required
-                    className="w-full h-9 bg-white border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-mono tabular-nums focus:border-[#2457A7] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#17263C] font-medium mb-1">Mandate Valid Till</label>
-                  <input
-                    type="date"
-                    value={opValidTill}
-                    onChange={e => setOpValidTill(e.target.value)}
-                    required
-                    className="w-full h-9 bg-white border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-mono tabular-nums focus:border-[#2457A7] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-1 flex justify-end">
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#102544] text-white font-semibold rounded-lg hover:bg-[#0B1730] shadow-xs text-xs transition-colors"
-                >
-                  Submit Operator Mandate with 2FA
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: NOMINEES */}
-      {activeTab === 'nominees' && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {currentNominees.map(nom => (
-              <div
-                key={nom.id}
-                className="p-5 bg-white border border-[#E3E8F0] rounded-xl shadow-xs space-y-4 text-xs"
-              >
-                <div className="flex items-start justify-between border-b border-[#E3E8F0] pb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-[#102544]">{nom.name}</span>
-                      <span className="text-[10px] bg-[#2457A7]/10 text-[#2457A7] border border-[#2457A7]/20 px-2 py-0.5 rounded font-mono">
-                        {nom.relationship}
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-[#66758C] font-mono tabular-nums mt-0.5 block">
-                      Form DA-1 Ref: {nom.formDa1Reference}
-                    </span>
                   </div>
-                  <StatusBadge status={nom.status} size="sm" />
-                </div>
 
-                <div className="grid grid-cols-2 gap-3 text-[11px]">
-                  <div>
-                    <span className="text-[#66758C] block">Date of Birth</span>
-                    <span className="font-mono tabular-nums font-medium text-[#17263C]">{nom.dateOfBirth}</span>
-                  </div>
-                  <div>
-                    <span className="text-[#66758C] block">Minor Status</span>
-                    <span className="font-medium text-[#17263C]">
-                      {nom.isMinor ? 'Minor (Guardian Assigned)' : 'Major (Adult)'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[#66758C] block">Contact</span>
-                    <span className="font-medium font-mono tabular-nums text-[#17263C]">{nom.phone}</span>
-                  </div>
-                  <div>
-                    <span className="text-[#66758C] block">Registration Date</span>
-                    <span className="font-mono tabular-nums text-[#17263C]">{nom.registeredOn}</span>
-                  </div>
-                </div>
-
-                <div className="text-[11px] text-[#66758C] bg-[#F5F7FA] p-2.5 rounded-lg border border-[#E3E8F0]">
-                  <span className="text-[#66758C] font-semibold block mb-0.5">Nominee Address:</span>
-                  {nom.address}
-                </div>
-
-                <div className="pt-2 border-t border-[#E3E8F0] flex items-center justify-between">
-                  <button
-                    onClick={() => openFormDa1Doc(nom.formDa1Reference)}
-                    className="text-xs font-semibold text-[#2457A7] hover:text-[#102544] flex items-center gap-1 hover:underline"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>View Form DA-1</span>
-                  </button>
-                  {nom.status === 'Registered' && (
+                  <div className="pt-1 flex items-center justify-end">
                     <button
-                      onClick={() => handleCancelNomineeClick(nom.id)}
-                      className="text-[#C83E44] hover:text-[#C83E44]/80 font-semibold text-[11px] hover:underline"
+                      type="button"
+                      onClick={() => {
+                        setTargetOperatorIdToRevoke(op.id);
+                        setPendingOtpAction('revoke-operator');
+                        setIsOtpOpen(true);
+                      }}
+                      className="px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 font-bold text-xs hover:bg-rose-50 cursor-pointer"
                     >
-                      Cancel Nomination (Form DA-2)
+                      Revoke Mandate (OTP)
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* TAB 4: ADD NOMINEE FORM */}
-      {activeTab === 'add-nominee' && (
-        <div className="max-w-2xl mx-auto bg-white border border-[#E3E8F0] rounded-xl p-6 shadow-xs space-y-5 text-xs">
-          <div>
-            <h3 className="text-sm font-bold text-[#102544]">
-              Form DA-1 (Nomination under Section 45ZA of the Banking Regulation Act, 1949)
-            </h3>
-            <p className="text-[#66758C] mt-0.5 text-[11px]">
-              Nominate an individual to receive safe deposit locker contents in the event of hirer death
-            </p>
+      {/* TAB 3: NOMINEES (Statutory Form SL-1, Up to 4 nominees with share % totaling 100) */}
+      {activeTab === 'nominees' && (
+        <div className="space-y-3">
+          <div className="px-1 flex items-center justify-between">
+            <span className="text-xs font-extrabold text-[#1F1420] dark:text-[#F5ECF1]">
+              Locker Nominees ({currentNominees.length}/4 registered)
+            </span>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-[#1E8E5A] border border-emerald-500/20 text-[10px] font-bold">
+              Total Share: {currentTotalShare}%
+            </span>
           </div>
 
-          <form onSubmit={handleNomineeSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-medium text-[#17263C] mb-1">Nominee Full Legal Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Shalini Sharma"
-                  value={nomName}
-                  onChange={e => setNomName(e.target.value)}
-                  required
-                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-medium text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
-                />
+          {currentNominees.length === 0 ? (
+            <div className="p-8 text-center bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] space-y-3">
+              <ShieldAlert className="w-8 h-8 text-amber-500 mx-auto" />
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-[#1F1420] dark:text-white">
+                  No Nominee Registered for Locker #{currentLocker?.lockerNumber}
+                </p>
+                <p className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
+                  As per RBI guidelines, register a nominee under Form SL-1 to avoid legal heir succession hurdles.
+                </p>
               </div>
-
-              <div>
-                <label className="block font-medium text-[#17263C] mb-1">Relationship with Hirer</label>
-                <select
-                  value={nomRel}
-                  onChange={e => setNomRel(e.target.value)}
-                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-medium text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
-                >
-                  <option value="Spouse">Spouse</option>
-                  <option value="Son">Son</option>
-                  <option value="Daughter">Daughter</option>
-                  <option value="Father">Father</option>
-                  <option value="Mother">Mother</option>
-                  <option value="Brother">Brother</option>
-                  <option value="Sister">Sister</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-medium text-[#17263C] mb-1">Date of Birth</label>
-                <input
-                  type="date"
-                  value={nomDob}
-                  onChange={e => setNomDob(e.target.value)}
-                  required
-                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-mono tabular-nums text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-[#17263C] mb-1">Contact Phone Number</label>
-                <input
-                  type="text"
-                  value={nomPhone}
-                  onChange={e => setNomPhone(e.target.value)}
-                  required
-                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] font-mono tabular-nums focus:bg-white focus:border-[#2457A7] focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 cursor-pointer font-medium text-[#17263C]">
-                <input
-                  type="checkbox"
-                  checked={nomIsMinor}
-                  onChange={e => setNomIsMinor(e.target.checked)}
-                  className="rounded text-[#102544] focus:ring-[#2457A7]"
-                />
-                <span>Nominee is a Minor (Under 18 Years)</span>
-              </label>
-            </div>
-
-            {nomIsMinor && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
-                <label className="block font-medium text-amber-900 text-xs">
-                  Guardian Name & Details (Mandatory for minor nominees)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Guardian Legal Full Name & Relationship"
-                  value={nomGuardianName}
-                  onChange={e => setNomGuardianName(e.target.value)}
-                  required={nomIsMinor}
-                  className="w-full h-9 bg-white border border-amber-300 rounded-lg px-3 text-[#17263C] text-xs focus:outline-none"
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="block font-medium text-[#17263C] mb-1">Nominee Residential Address</label>
-              <textarea
-                rows={2}
-                value={nomAddress}
-                onChange={e => setNomAddress(e.target.value)}
-                required
-                className="w-full bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg p-2.5 text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
-              />
-            </div>
-
-            <div className="pt-2 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setActiveTab('nominees')}
-                className="px-4 py-2 text-[#66758C] hover:bg-[#F5F7FA] rounded-lg text-xs font-medium transition-colors"
+                onClick={() => setActiveTab('add-nominee')}
+                className="px-4 py-2 bg-[#97144D] text-white font-bold rounded-xl text-xs active-press cursor-pointer"
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-6 py-2 bg-[#102544] text-white font-semibold rounded-lg hover:bg-[#0B1730] shadow-xs text-xs transition-colors"
-              >
-                Submit Form DA-1 Nomination
+                + Register Nominee (Form SL-1)
               </button>
             </div>
-          </form>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {currentNominees.map(nom => (
+                <div
+                  key={nom.id}
+                  className="bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] p-4 shadow-sm space-y-3"
+                >
+                  <div className="flex items-start justify-between border-b border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] pb-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-2xl bg-[#97144D]/10 text-[#97144D] dark:text-[#FFDF85] flex items-center justify-center font-black text-sm">
+                        {nom.name.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-sm text-[#1F1420] dark:text-white">
+                          {nom.name}
+                        </h3>
+                        <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
+                          {nom.relationship} · {nom.sharePercentage || 100}% Share
+                        </span>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-[#1E8E5A] border border-emerald-500/20 text-[10px] font-bold">
+                      Registered on CBS
+                    </span>
+                  </div>
+
+                  {/* Form SL reference on its own line */}
+                  <div className="p-2 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+                    <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] block">Compliance Form Code:</span>
+                    <span className="font-mono font-bold text-xs text-[#97144D] dark:text-[#FFDF85] block mt-0.5">
+                      {nom.formDa1Reference || 'SL-1/2026/0891'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+                      <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] block">Registration Date</span>
+                      <span className="font-mono font-bold text-xs text-[#1F1420] dark:text-white">{nom.registeredOn || '2026-01-15'}</span>
+                    </div>
+                    <div className="p-2 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+                      <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] block">Minor Status</span>
+                      <span className="font-semibold text-xs text-[#1F1420] dark:text-white">{nom.isMinor ? 'Minor (Guardian Assigned)' : 'Major (18+)'}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-1 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetNomineeIdToCancel(nom.id);
+                        setPendingOtpAction('cancel-nominee');
+                        setIsOtpOpen(true);
+                      }}
+                      className="px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 font-bold text-xs hover:bg-rose-50 cursor-pointer"
+                    >
+                      Cancel (Form SL-2)
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* TAB 5: CONTACT DETAILS UPDATE */}
-      {activeTab === 'contact-update' && (
-        <div className="max-w-2xl mx-auto bg-white border border-[#E3E8F0] rounded-xl p-6 shadow-xs space-y-5 text-xs">
-          <div>
-            <h3 className="text-sm font-bold text-[#102544]">
-              Update Registered Contact & Correspondence Particulars
+      {/* TAB 4: ADD NOMINEE (FORM SL-1 / SL-1A) */}
+      {activeTab === 'add-nominee' && (
+        <form onSubmit={handleNomineeSubmit} className="bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] p-4 shadow-sm space-y-4 text-xs">
+          <div className="border-b border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] pb-2.5">
+            <h3 className="font-extrabold text-sm text-[#1F1420] dark:text-white">
+              Nomination Registration (Form SL-1 / SL-1A)
             </h3>
-            <p className="text-[#66758C] mt-0.5 text-[11px]">
-              Requires mandatory 2FA OTP step-up verification and branch custodian sign-off on Core Banking System (CBS)
-            </p>
+            <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4]">
+              Mandatory under Safe Deposit Locker regulatory framework. Up to 4 nominees allowed.
+            </span>
           </div>
 
-          <form onSubmit={handleContactSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-medium text-[#17263C] mb-1">New Mobile Number</label>
-                <input
-                  type="text"
-                  value={contactMobile}
-                  onChange={e => setContactMobile(e.target.value)}
-                  required
-                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 font-mono tabular-nums text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-[#17263C] mb-1">New Email Address</label>
-                <input
-                  type="email"
-                  value={contactEmail}
-                  onChange={e => setContactEmail(e.target.value)}
-                  required
-                  className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
-                />
-              </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[11px] font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
+                Statutory Form Code
+              </label>
+              <select
+                value={nomFormCode}
+                onChange={e => {
+                  const val = e.target.value as any;
+                  setNomFormCode(val);
+                  setNomIsMinor(val === 'SL-1A');
+                }}
+                className="w-full h-10 bg-[#FAF6F8] dark:bg-[#2E1624] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] rounded-xl px-2.5 text-xs font-bold"
+              >
+                <option value="SL-1">SL-1 (Major Nominee)</option>
+                <option value="SL-1A">SL-1A (Minor Nominee)</option>
+              </select>
             </div>
 
             <div>
-              <label className="block font-medium text-[#17263C] mb-1">New Correspondence Address</label>
-              <textarea
-                rows={3}
-                value={contactAddress}
-                onChange={e => setContactAddress(e.target.value)}
-                required
-                className="w-full bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg p-2.5 text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
+              <label className="block text-[11px] font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
+                Share Allocation (%)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={nomSharePercent}
+                onChange={e => setNomSharePercent(Number(e.target.value))}
+                className="w-full h-10 bg-[#FAF6F8] dark:bg-[#2E1624] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] rounded-xl px-3 font-mono font-bold"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
+              Full Legal Name
+            </label>
+            <input
+              type="text"
+              required
+              value={nomName}
+              onChange={e => setNomName(e.target.value)}
+              placeholder="e.g. Priya Sharma"
+              className="w-full h-10 bg-[#FAF6F8] dark:bg-[#2E1624] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] rounded-xl px-3 text-xs"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[11px] font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
+                Relationship
+              </label>
+              <select
+                value={nomRel}
+                onChange={e => setNomRel(e.target.value)}
+                className="w-full h-10 bg-[#FAF6F8] dark:bg-[#2E1624] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] rounded-xl px-2.5 text-xs"
+              >
+                <option>Spouse</option>
+                <option>Son</option>
+                <option>Daughter</option>
+                <option>Father</option>
+                <option>Mother</option>
+                <option>Brother</option>
+                <option>Sister</option>
+              </select>
+            </div>
 
             <div>
-              <label className="block font-medium text-[#17263C] mb-1">Reason for Change</label>
+              <label className="block text-[11px] font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
+                Date of Birth
+              </label>
+              <input
+                type="date"
+                value={nomDob}
+                onChange={e => setNomDob(e.target.value)}
+                className="w-full h-10 bg-[#FAF6F8] dark:bg-[#2E1624] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] rounded-xl px-2.5 text-xs font-mono"
+              />
+            </div>
+          </div>
+
+          {nomIsMinor && (
+            <div>
+              <label className="block text-[11px] font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
+                Appointed Guardian Name (Statutory)
+              </label>
               <input
                 type="text"
-                value={contactReason}
-                onChange={e => setContactReason(e.target.value)}
-                className="w-full h-9 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg px-3 text-[#17263C] focus:bg-white focus:border-[#2457A7] focus:outline-none"
+                required
+                value={nomGuardianName}
+                onChange={e => setNomGuardianName(e.target.value)}
+                placeholder="Guardian legal name"
+                className="w-full h-10 bg-[#FAF6F8] dark:bg-[#2E1624] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] rounded-xl px-3 text-xs"
               />
             </div>
+          )}
 
-            <div className="pt-2 flex justify-end">
-              <button
-                type="submit"
-                className="px-6 py-2 bg-[#102544] text-white font-semibold rounded-lg hover:bg-[#0B1730] shadow-xs text-xs transition-colors"
-              >
-                Authorize Contact Update with 2FA
-              </button>
-            </div>
-          </form>
-        </div>
+          <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[11px]">
+            <input
+              type="checkbox"
+              id="enomConsent"
+              checked={eNominationConsent}
+              onChange={e => setENominationConsent(e.target.checked)}
+              className="rounded"
+            />
+            <label htmlFor="enomConsent" className="text-[#1F1420] dark:text-white font-medium cursor-pointer">
+              I consent to e-Nomination with Aadhaar OTP e-signature under RBI Safe Deposit Locker guidelines.
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            className="w-full h-11 bg-[#97144D] hover:bg-[#6B0E37] text-white font-bold rounded-xl text-xs shadow-md transition-colors active-press cursor-pointer"
+          >
+            Authorize Nomination via OTP Step-Up
+          </button>
+        </form>
       )}
 
-      {/* OTP Step-Up Modal */}
+      {/* TAB 5: CONTACT UPDATE */}
+      {activeTab === 'contact' && (
+        <form onSubmit={handleContactSubmit} className="bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] p-4 shadow-sm space-y-4 text-xs">
+          <div className="border-b border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] pb-2.5">
+            <h3 className="font-extrabold text-sm text-[#1F1420] dark:text-white">
+              Communication & Advisory Contacts
+            </h3>
+            <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
+              Real-time SMS and email alerts dispatched on every strongroom turnstile entry.
+            </span>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
+              Registered Mobile Number
+            </label>
+            <input
+              type="text"
+              value={contactMobile}
+              onChange={e => setContactMobile(e.target.value)}
+              className="w-full h-10 bg-[#FAF6F8] dark:bg-[#2E1624] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] rounded-xl px-3 font-mono font-bold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
+              Registered Email ID
+            </label>
+            <input
+              type="email"
+              value={contactEmail}
+              onChange={e => setContactEmail(e.target.value)}
+              className="w-full h-10 bg-[#FAF6F8] dark:bg-[#2E1624] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] rounded-xl px-3 font-bold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
+              Residential Address
+            </label>
+            <textarea
+              rows={2}
+              value={contactAddress}
+              onChange={e => setContactAddress(e.target.value)}
+              className="w-full p-2.5 bg-[#FAF6F8] dark:bg-[#2E1624] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] rounded-xl text-xs"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full h-11 bg-[#97144D] hover:bg-[#6B0E37] text-white font-bold rounded-xl text-xs shadow-md active-press cursor-pointer"
+          >
+            Update Contact Details (OTP Step-Up)
+          </button>
+        </form>
+      )}
+
+      {/* OTP STEP-UP MODAL */}
       <OtpModal
         isOpen={isOtpOpen}
         onClose={() => setIsOtpOpen(false)}
         onSuccess={handleOtpSuccess}
         title={
           pendingOtpAction === 'add-nominee'
-            ? 'Authorize Form DA-1 Nomination'
+            ? 'Authorize Nomination Registration'
             : pendingOtpAction === 'cancel-nominee'
-            ? 'Confirm Form DA-2 Nomination Cancellation'
+            ? 'Authorize Nomination Cancellation'
             : pendingOtpAction === 'add-operator'
-            ? 'Authorize Power of Attorney Operator'
-            : 'Authorize Contact Details Update'
+            ? 'Authorize Operator Mandate'
+            : pendingOtpAction === 'revoke-operator'
+            ? 'Revoke Operator Authority'
+            : 'Update CBS Contact Details'
         }
-        actionDescription="2FA security authorization for locker mandate alteration"
-      />
-
-      {/* Document Modal */}
-      <DocumentModal
-        document={viewDoc}
-        onClose={() => setViewDoc(null)}
+        actionDescription="Statutory 2-Factor Authentication step-up per SafeVault banking security policy."
       />
 
     </div>

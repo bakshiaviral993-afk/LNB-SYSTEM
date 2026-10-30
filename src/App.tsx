@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { ThemeProvider } from './context/ThemeContext';
 import { BankingProvider, useBanking } from './context/BankingContext';
 import { Header } from './components/common/Header';
 import { Sidebar } from './components/common/Sidebar';
@@ -24,6 +25,7 @@ import { ClaimsCenter } from './components/customer/ClaimsCenter';
 import { DocumentVault } from './components/customer/DocumentVault';
 import { SupportCenter } from './components/customer/SupportCenter';
 import { LockerClosure } from './components/customer/LockerClosure';
+import { CustomerMobileShell } from './components/customer/CustomerMobileShell';
 
 // Admin / Branch Operations Modules
 import { AdminDashboard } from './components/admin/AdminDashboard';
@@ -303,7 +305,7 @@ const RootAppRouter: React.FC = () => {
     );
   }
 
-  // Route 3: /dashboard (Authenticated, Role-Based Application Entry)
+  // Route 3: /dashboard (Authenticated Customer Mobile App)
   // Protected Route: unauthenticated users cannot access dashboard
   if (!isAuthenticated) {
     return (
@@ -314,13 +316,20 @@ const RootAppRouter: React.FC = () => {
     );
   }
 
-  return <EnterpriseAppLayout />;
+  return (
+    <>
+      <CustomerMobileShell />
+      <SessionTimeoutModal />
+    </>
+  );
 };
 
 export default function App() {
   return (
-    <BankingProvider>
-      <RootAppRouter />
-    </BankingProvider>
+    <ThemeProvider>
+      <BankingProvider>
+        <RootAppRouter />
+      </BankingProvider>
+    </ThemeProvider>
   );
 }

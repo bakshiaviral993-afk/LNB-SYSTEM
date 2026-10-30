@@ -100,9 +100,9 @@ export const NotificationsCenter: React.FC = () => {
             <p className="text-xs font-medium">No alerts recorded in this category.</p>
           </div>
         ) : (
-          filteredNotifs.map(n => (
+          filteredNotifs.map((n, idx) => (
             <div
-              key={n.id}
+              key={`${n.id}-${idx}`}
               onClick={() => markNotificationRead(n.id)}
               className={`p-4 transition-colors cursor-pointer flex items-start gap-4 hover:bg-[#F5F7FA]/70 ${
                 !n.read ? 'bg-[#2457A7]/5' : ''

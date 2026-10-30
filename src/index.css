@@ -1,127 +1,157 @@
 @import "tailwindcss";
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
 
 @layer base {
   :root {
-    --color-primary-navy: #102544;
-    --color-deep-navy: #0B1730;
-    --color-royal-blue: #2457A7;
-    --color-accent-teal: #008C88;
-    --color-bg-app: #F5F7FA;
-    --color-bg-card: #FFFFFF;
-    --color-text-main: #17263C;
-    --color-text-secondary: #66758C;
-    --color-border-subtle: #E3E8F0;
-    --color-success: #16845B;
-    --color-warning: #B7791F;
-    --color-error: #C83E44;
+    --bg: #FAF6F8;
+    --surface: #FFFFFF;
+    --surface-2: #F3ECF0;
+    --text: #1F1420;
+    --text-muted: #6B5B68;
+    --border: #E8DFE5;
+    --primary: #97144D;
+    --primary-deep: #6B0E37;
+    --accent: #C9A24B;
+    --accent-light: #FFDF85;
+    --success: #1E8E5A;
+    --warning: #D98E04;
+    --error: #C62828;
+    --booked: #D9D3D6;
+
+    /* Legacy compatibility tokens */
+    --color-primary-burgundy: var(--primary);
+    --color-deep-burgundy: var(--primary-deep);
+    --color-accent-gold: var(--accent);
+    --color-surface: var(--bg);
+    --color-card-bg: var(--surface);
+    --color-text-main: var(--text);
+    --color-text-muted: var(--text-muted);
+    --color-border-subtle: var(--border);
+    --color-success: var(--success);
+    --color-warning: var(--warning);
+    --color-error: var(--error);
+    --color-booked: var(--booked);
+
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  .dark, [data-theme="dark"] {
+    --bg: #14080F;
+    --surface: #221019;
+    --surface-2: #2E1624;
+    --text: #F5ECF1;
+    --text-muted: #A898A4;
+    --border: rgba(255, 255, 255, 0.12); /* 10-14% white border per spec */
+    --primary: #97144D;
+    --primary-deep: #6B0E37;
+    --accent: #C9A24B;
+    --accent-light: #FFDF85;
+    --success: #2EC480;
+    --warning: #F5A623;
+    --error: #E5484D;
+    --booked: #3D2938;
+
+    /* Legacy compatibility tokens */
+    --color-surface: var(--bg);
+    --color-card-bg: var(--surface);
+    --color-text-main: var(--text);
+    --color-text-muted: var(--text-muted);
+    --color-border-subtle: var(--border);
   }
   
   html {
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
     font-family: var(--font-sans);
+    background-color: var(--bg);
+    color: var(--text);
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: var(--color-bg-app);
-    color: var(--color-text-main);
+    background-color: var(--bg);
+    color: var(--text);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 }
 
-/* Custom enterprise banking scrollbar */
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(232, 223, 229, 0.8);
+}
+
+.dark .glass-panel, [data-theme="dark"] .glass-panel {
+  background: rgba(34, 16, 25, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Tabular figures for numerical & monetary alignment */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom premium scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 4px;
+  background: #D9D3D6;
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #3D2938;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: #97144D;
 }
 
-/* Tabular figures for all financial & numerical displays */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Enterprise banking card & modal elevations */
-.shadow-bank-card {
-  box-shadow: 0 1px 3px 0 rgba(16, 37, 68, 0.05), 0 1px 2px -1px rgba(16, 37, 68, 0.05);
-}
-
-.shadow-bank-dropdown {
-  box-shadow: 0 10px 25px -5px rgba(11, 23, 48, 0.12), 0 8px 10px -6px rgba(11, 23, 48, 0.08);
-}
-
-.shadow-bank-hero {
-  box-shadow: 0 20px 40px -15px rgba(11, 23, 48, 0.35);
-}
-
-/* Enterprise Motion Animations */
-@keyframes fadeIn {
-  from {
+/* Micro-animations */
+@keyframes radarPing {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(2.2);
     opacity: 0;
   }
-  to {
-    opacity: 1;
-  }
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.animate-radar {
+  animation: radarPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-16px);
+/* Press scale feedback */
+.active-press {
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.active-press:active {
+  transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  .active-press:active {
+    transform: none !important;
   }
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-slide-up {
-  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-slide-down {
-  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

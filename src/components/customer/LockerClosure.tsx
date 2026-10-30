@@ -12,7 +12,9 @@ import {
   Key,
   Landmark,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  ShieldCheck,
+  Building
 } from 'lucide-react';
 
 export const LockerClosure: React.FC = () => {
@@ -25,10 +27,22 @@ export const LockerClosure: React.FC = () => {
     documents
   } = useBanking();
 
-  const customerLockers = lockers.filter(l => l.customerId === 'cust-rahul-01');
-  const [targetLockerId, setTargetLockerId] = useState<string>(selectedLockerId || customerLockers[0]?.id || 'lck-125');
+  const customerLockers = lockers.filter(
+    l => l.customerId === 'cust-rahul-01' || l.customerName === 'Rahul Sharma'
+  );
+
+  // Compute dynamic today's date + 2 days for default handover
+  const defaultHandoverDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    return d.toISOString().split('T')[0];
+  })();
+
+  const [targetLockerId, setTargetLockerId] = useState<string>(
+    selectedLockerId || customerLockers[0]?.id || 'lck-042'
+  );
   const [reason, setReason] = useState('Relocating to another city');
-  const [closureDate, setClosureDate] = useState('2026-10-28');
+  const [closureDate, setClosureDate] = useState(defaultHandoverDate);
   const [closureSlot, setClosureSlot] = useState('11:00 AM - 11:30 AM');
   const [isOtpOpen, setIsOtpOpen] = useState(false);
   const [initiatedTicket, setInitiatedTicket] = useState<string | null>(null);
@@ -67,137 +81,155 @@ export const LockerClosure: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 text-xs">
+    <div className="space-y-4 pb-28 text-xs text-[#1F1420] dark:text-[#FBF4F8]">
       
-      {/* Title */}
-      <div className="pb-3 border-b border-[#E3E8F0] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-[#17263C]">
-              Locker Surrender & Security Deposit Settlement
-            </h1>
-            <span className="text-[10px] font-bold text-[#2457A7] bg-[#2457A7]/10 border border-[#2457A7]/20 px-2 py-0.5 rounded tracking-wide uppercase">
-              Settlement Desk
-            </span>
-          </div>
-          <p className="text-[#66758C] text-xs mt-1">
-            Orderly surrender workflow, physical key handover verification, chamber clearance certificate, and linked FD lien release
-          </p>
+      {/* Title Header Card */}
+      <div className="bg-gradient-to-r from-[#6B0E37] via-[#97144D] to-[#6B0E37] text-white p-4 rounded-3xl shadow-md border border-[#6B0E37]">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <XCircle className="w-4 h-4 text-[#FFDF85]" />
+          <span className="text-[11px] font-mono uppercase tracking-wider text-[#FFDF85] font-extrabold">
+            SURRENDER & SETTLEMENT DESK
+          </span>
         </div>
+        <h1 className="text-xl font-black tracking-tight text-white">
+          Locker Surrender & Settlement
+        </h1>
+        <p className="text-xs text-white/80 mt-0.5">
+          Orderly surrender workflow, physical key handover inspection, and linked FD security deposit refund credit.
+        </p>
       </div>
 
       {closureError && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 text-[#C83E44] rounded-xl flex items-center justify-between text-xs animate-in fade-in">
+        <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-900/40 text-[#C62828] rounded-2xl flex items-center justify-between text-xs animate-in fade-in">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-[#C83E44] shrink-0" />
-            <span className="font-semibold">{closureError}</span>
+            <AlertCircle className="w-4 h-4 text-[#C62828] shrink-0" />
+            <span className="font-bold">{closureError}</span>
           </div>
-          <button onClick={() => setClosureError(null)} className="text-xs underline hover:no-underline">Dismiss</button>
+          <button onClick={() => setClosureError(null)} className="text-xs font-bold p-1">✕</button>
         </div>
       )}
 
       {initiatedTicket ? (
-        <div className="max-w-2xl mx-auto bg-white border border-emerald-200/80 rounded-xl p-6 shadow-bank-card space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-100/80 flex items-center justify-center text-[#16845B]">
+        <div className="bg-white dark:bg-[#20101D] border border-emerald-300 dark:border-emerald-800 rounded-3xl p-5 shadow-sm space-y-4 text-xs">
+          <div className="flex items-center gap-3 border-b border-[#E8DFE5] dark:border-[#381B30] pb-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center text-[#1E8E5A] shrink-0">
               <CheckCircle2 className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-[#17263C]">
+              <h2 className="text-sm font-black text-[#1F1420] dark:text-white">
                 Surrender Notice Registered Successfully
               </h2>
-              <span className="text-xs font-mono text-[#66758C]">
+              <span className="text-xs font-mono font-bold text-[#97144D] dark:text-[#E895B8]">
                 Ticket Reference: {initiatedTicket}
               </span>
             </div>
           </div>
 
-          <p className="text-[#17263C] text-xs leading-relaxed">
+          <p className="text-xs text-[#1F1420] dark:text-white leading-relaxed">
             Your surrender appointment has been confirmed for <strong>{closureDate}</strong> at <strong>{closureSlot}</strong> at {targetLocker.branchName}.
           </p>
 
-          <div className="p-4 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg space-y-2 text-xs">
-            <span className="font-bold text-[#102544] block">Surrender Appointment Checklist:</span>
-            <ul className="list-disc pl-4 space-y-1 text-[#17263C]">
+          <div className="p-3.5 bg-[#FAF6F8] dark:bg-[#2A1527] border border-[#E8DFE5] dark:border-[#381B30] rounded-2xl space-y-2 text-xs">
+            <span className="font-extrabold text-[#1F1420] dark:text-white block">
+              Handover Inspection Checklist:
+            </span>
+            <ul className="list-disc pl-4 space-y-1 text-[#6B5B68] dark:text-[#A898A4]">
               <li>Carry the original physical Locker Key (Serial #{targetLocker.keyNumber || 'K-8820A'}).</li>
               <li>Present Government Photo ID (Aadhaar / Passport).</li>
               <li>Both joint holders must attend if operating mandate is &quot;Jointly&quot;.</li>
-              <li>Vacate all personal valuables from the compartment during the inspection.</li>
-              <li>Security deposit of <strong className="font-mono text-[#16845B]">₹{targetLocker.securityDeposit.toLocaleString('en-IN')}</strong> will be credited directly to your savings account upon signing the clearance certificate.</li>
+              <li>Vacate all personal valuables from the compartment during inspection.</li>
+              <li>Security deposit of <strong className="font-mono text-[#1E8E5A]">₹{targetLocker.securityDeposit.toLocaleString('en-IN')}</strong> will be credited directly to your linked savings account upon signing the clearance deed.</li>
             </ul>
           </div>
 
-          <div className="pt-2 flex justify-end">
-            <button
-              onClick={() => setInitiatedTicket(null)}
-              className="px-5 py-2 bg-[#102544] text-white font-semibold text-xs rounded-lg hover:bg-[#0B1730] shadow-xs transition-colors"
-            >
-              Back to Surrender Overview
-            </button>
-          </div>
+          <button
+            onClick={() => setInitiatedTicket(null)}
+            className="w-full h-11 bg-[#97144D] text-white font-bold text-xs rounded-xl hover:bg-[#6B0E37] shadow-xs transition-colors"
+          >
+            Back to Surrender Overview
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        /* Single column layout on mobile to prevent squashing and line breaking */
+        <div className="space-y-4">
           
-          {/* Surrender Form (7 Cols) */}
-          <div className="lg:col-span-7 bg-white border border-[#E3E8F0] rounded-xl p-6 shadow-bank-card space-y-5">
-            <h2 className="text-sm font-bold text-[#17263C] flex items-center gap-2 border-b border-[#E3E8F0] pb-3">
-              <XCircle className="w-4 h-4 text-[#C83E44]" />
+          {/* Surrender Form */}
+          <div className="bg-white dark:bg-[#20101D] border border-[#E8DFE5] dark:border-[#381B30] rounded-3xl p-5 shadow-sm space-y-4">
+            <h2 className="text-sm font-black text-[#1F1420] dark:text-white flex items-center gap-2 border-b border-[#E8DFE5] dark:border-[#381B30] pb-2.5">
+              <XCircle className="w-4 h-4 text-[#C62828]" />
               <span>Initiate Safe Deposit Locker Surrender</span>
             </h2>
 
-            <form onSubmit={handleClosureClick} className="space-y-4">
+            <form onSubmit={handleClosureClick} className="space-y-3.5">
+              
+              {/* Locker selection in clean single column */}
               <div>
-                <label className="block font-semibold text-[#17263C] mb-1.5">
+                <label className="block text-xs font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1.5">
                   Select Locker to Surrender
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {customerLockers.map(lkr => (
-                    <div
-                      key={lkr.id}
-                      onClick={() => {
-                        setTargetLockerId(lkr.id);
-                        setSelectedLockerId(lkr.id);
-                      }}
-                      className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
-                        targetLockerId === lkr.id
-                          ? 'border-[#102544] bg-[#102544] text-white shadow-xs'
-                          : 'border-[#E3E8F0] bg-white text-[#17263C] hover:border-[#102544]/30'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between font-bold">
-                        <span>Safe {lkr.lockerNumber}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${targetLockerId === lkr.id ? 'bg-white/20 text-white' : 'bg-[#F5F7FA] text-[#66758C] border border-[#E3E8F0]'}`}>
+                <div className="space-y-2">
+                  {customerLockers.map(lkr => {
+                    const isSelected = targetLockerId === lkr.id;
+                    return (
+                      <div
+                        key={lkr.id}
+                        onClick={() => {
+                          setTargetLockerId(lkr.id);
+                          setSelectedLockerId(lkr.id);
+                        }}
+                        className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+                          isSelected
+                            ? 'border-[#97144D] bg-[#97144D]/5 ring-2 ring-[#97144D]/25 shadow-xs'
+                            : 'border-[#E8DFE5] dark:border-[#381B30] bg-[#FAF6F8] dark:bg-[#2A1527] hover:bg-slate-100 dark:hover:bg-[#33152B]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-mono text-xs font-bold ${
+                            isSelected ? 'bg-[#97144D] text-white' : 'bg-slate-200 dark:bg-slate-700 text-[#6B5B68]'
+                          }`}>
+                            <Key className="w-4 h-4" />
+                          </div>
+                          <div>
+                            {/* Single line, no wrapping */}
+                            <span className="font-mono font-bold text-sm text-[#1F1420] dark:text-white block whitespace-nowrap">
+                              Locker #{lkr.lockerNumber}
+                            </span>
+                            <span className="text-xs text-[#6B5B68] dark:text-[#A898A4] block truncate max-w-[200px]">
+                              {lkr.branchName}
+                            </span>
+                          </div>
+                        </div>
+
+                        <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-[#97144D]/10 text-[#97144D] dark:text-[#E895B8] border border-[#97144D]/20">
                           {lkr.size}
                         </span>
                       </div>
-                      <div className={`text-[11px] mt-1 ${targetLockerId === lkr.id ? 'text-slate-300' : 'text-[#66758C]'}`}>
-                        {lkr.branchName}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Dues Warning if present */}
               {hasDues && (
-                <div className="p-3.5 bg-rose-50/80 border border-rose-200/80 rounded-lg text-rose-950 flex items-start gap-2.5">
-                  <AlertTriangle className="w-4 h-4 text-[#C83E44] shrink-0 mt-0.5" />
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-900/40 rounded-2xl text-[#C62828] flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-[#C62828] shrink-0 mt-0.5" />
                   <div className="text-xs">
-                    <span className="font-bold text-[#C83E44] block">Outstanding Rental Dues: ₹{targetLocker.outstandingRent?.toLocaleString('en-IN')}</span>
+                    <span className="font-bold block">
+                      Outstanding Rental Dues: ₹{targetLocker.outstandingRent?.toLocaleString('en-IN')}
+                    </span>
                     Please clear all outstanding rent under Rent & Payments tab before submitting surrender notice.
                   </div>
                 </div>
               )}
 
               <div>
-                <label className="block font-semibold text-[#17263C] mb-1">
+                <label className="block text-xs font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
                   Reason for Surrendering Locker
                 </label>
                 <select
                   value={reason}
                   onChange={e => setReason(e.target.value)}
-                  className="w-full bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg p-2 font-medium text-[#17263C] text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#102544] focus:border-[#102544]"
+                  className="w-full h-11 bg-[#FAF6F8] dark:bg-[#2A1527] border border-[#E8DFE5] dark:border-[#381B30] rounded-xl px-3 font-semibold text-xs text-[#1F1420] dark:text-white focus:bg-white dark:focus:bg-[#20101D] focus:outline-none"
                 >
                   <option value="Relocating to another city">Relocating to another city / abroad</option>
                   <option value="No longer require safe custody storage">No longer require safe custody storage</option>
@@ -206,29 +238,30 @@ export const LockerClosure: React.FC = () => {
                 </select>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Single column date and slot on mobile */}
+              <div className="space-y-3">
                 <div>
-                  <label className="block font-semibold text-[#17263C] mb-1">
+                  <label className="block text-xs font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
                     Scheduled Handover Date
                   </label>
                   <input
                     type="date"
                     value={closureDate}
-                    min="2026-10-24"
+                    min={new Date().toISOString().split('T')[0]}
                     onChange={e => setClosureDate(e.target.value)}
                     required
-                    className="w-full bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg p-2 font-mono text-[#17263C] text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#102544] focus:border-[#102544]"
+                    className="w-full h-11 bg-[#FAF6F8] dark:bg-[#2A1527] border border-[#E8DFE5] dark:border-[#381B30] rounded-xl px-3 font-mono font-bold text-xs text-[#1F1420] dark:text-white focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-[#17263C] mb-1">
-                    Strongroom Slot
+                  <label className="block text-xs font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
+                    Strongroom Inspection Slot
                   </label>
                   <select
                     value={closureSlot}
                     onChange={e => setClosureSlot(e.target.value)}
-                    className="w-full bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg p-2 font-medium text-[#17263C] text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#102544] focus:border-[#102544]"
+                    className="w-full h-11 bg-[#FAF6F8] dark:bg-[#2A1527] border border-[#E8DFE5] dark:border-[#381B30] rounded-xl px-3 font-semibold text-xs text-[#1F1420] dark:text-white focus:outline-none"
                   >
                     <option value="10:00 AM - 10:30 AM">10:00 AM - 10:30 AM</option>
                     <option value="11:00 AM - 11:30 AM">11:00 AM - 11:30 AM</option>
@@ -237,90 +270,44 @@ export const LockerClosure: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-3.5 bg-[#F5F7FA] border border-[#E3E8F0] rounded-lg text-xs text-[#17263C]">
-                <label className="flex items-start gap-2.5 cursor-pointer">
-                  <input type="checkbox" required defaultChecked className="mt-0.5 rounded border-[#E3E8F0] text-[#102544] focus:ring-[#102544]" />
-                  <span className="leading-relaxed">
-                    I confirm that I hold the original physical locker key and agree to hand over the compartment in undamaged condition.
+              {/* Refund Credit Summary */}
+              <div className="p-3.5 bg-[#FAF6F8] dark:bg-[#2A1527] border border-[#E8DFE5] dark:border-[#381B30] rounded-2xl space-y-2 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-[#6B5B68] dark:text-[#A898A4]">Security Deposit Refund:</span>
+                  <span className="font-mono font-bold text-[#1E8E5A] text-sm">
+                    ₹{targetLocker.securityDeposit.toLocaleString('en-IN')}
                   </span>
-                </label>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[#6B5B68] dark:text-[#A898A4]">FD Lien Release:</span>
+                  <span className="font-bold text-[#1E8E5A]">Immediate upon Key Return</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[#6B5B68] dark:text-[#A898A4]">Credit Account:</span>
+                  <span className="font-mono font-bold text-[#1F1420] dark:text-white">•••• 1720</span>
+                </div>
               </div>
 
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={hasDues}
-                  className="px-6 py-2.5 bg-[#102544] text-white font-semibold text-xs rounded-lg hover:bg-[#0B1730] disabled:opacity-50 transition-colors shadow-xs"
-                >
-                  Confirm Surrender Notice & Schedule Appointment
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={hasDues}
+                className="w-full h-12 bg-[#97144D] hover:bg-[#6B0E37] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition-all active-press"
+              >
+                <XCircle className="w-4 h-4 text-[#FFDF85]" />
+                <span>Submit Surrender Notice & Book Key Handover</span>
+              </button>
             </form>
           </div>
-
-          {/* Deposit Settlement Summary (5 Cols) */}
-          <div className="lg:col-span-5 bg-[#F5F7FA] border border-[#E3E8F0] rounded-xl p-6 shadow-bank-card space-y-4">
-            <h3 className="font-bold text-[#17263C] text-sm border-b border-[#E3E8F0] pb-2">
-              Security Deposit Settlement Preview
-            </h3>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-[#66758C]">Locker Account:</span>
-                <span className="font-bold text-[#17263C] font-mono">
-                  Safe {targetLocker.lockerNumber} ({targetLocker.size})
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[#66758C]">Linked Term Deposit:</span>
-                <span className="font-mono text-[#17263C]">FD-88219001</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[#66758C]">Refundable Deposit:</span>
-                <span className="font-mono font-bold text-[#17263C] tabular-nums">
-                  ₹{targetLocker.securityDeposit.toLocaleString('en-IN')}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[#66758C]">Outstanding Dues:</span>
-                <span className={`font-mono font-bold tabular-nums ${hasDues ? 'text-[#C83E44]' : 'text-[#17263C]'}`}>
-                  ₹{(targetLocker.outstandingRent || 0).toLocaleString('en-IN')}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[#66758C]">Credit Destination A/c:</span>
-                <span className="font-mono text-[#17263C]">5010049281720</span>
-              </div>
-
-              <div className="pt-3 border-t border-[#E3E8F0] flex justify-between font-bold text-sm text-[#17263C]">
-                <span>Net Refundable Amount</span>
-                <span className="font-mono text-[#16845B] tabular-nums">
-                  ₹{(targetLocker.securityDeposit - (targetLocker.outstandingRent || 0)).toLocaleString('en-IN')}
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3.5 bg-white border border-[#E3E8F0] rounded-lg text-xs text-[#66758C] leading-relaxed shadow-xs">
-              Upon physical key handover and locker inspection by the Vault Custodian, the bank lien on the Term Deposit will be extinguished immediately and the amount will be unlocked into your Premier Savings Account.
-            </div>
-          </div>
-
         </div>
       )}
 
-      {/* OTP Step-Up Modal for Surrender */}
+      {/* Step-up OTP Modal */}
       <OtpModal
         isOpen={isOtpOpen}
         onClose={() => setIsOtpOpen(false)}
         onSuccess={handleOtpSuccess}
-        title="Authorize Locker Surrender Notice"
-        actionDescription={`Initiating closure notice for Locker ${targetLocker?.lockerNumber}`}
-      />
-
-      {/* Document Modal */}
-      <DocumentModal
-        document={viewDoc}
-        onClose={() => setViewDoc(null)}
+        title="Authorize Locker Surrender"
+        actionDescription={`Authorizing formal surrender notice for Locker #${targetLocker.lockerNumber}`}
       />
 
     </div>

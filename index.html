@@ -2,16 +2,40 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>National Bank - SafeVault Locker Portal</title>
-    <meta name="description" content="National Bank SafeVault Locker Management System — Your Valuables. Our Priority. Enterprise-grade digital banking portal for bank safe deposit lockers, visit bookings, agreements, rent billing, and branch operations." />
-    <meta property="og:title" content="National Bank - SafeVault Locker Portal" />
-    <meta property="og:description" content="National Bank SafeVault Locker Management System — Your Valuables. Our Priority. Enterprise-grade digital banking portal for bank safe deposit lockers." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#6B0E37" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>SafeVault – Locker Services</title>
+    <meta name="description" content="SafeVault – Locker Services. Self-service digital banking mobile app for bank safe deposit lockers, visit bookings, digital turnstile passes, agreements, and payments." />
+    <meta property="og:title" content="SafeVault – Locker Services" />
+    <meta property="og:description" content="SafeVault – Locker Services. Self-service digital banking mobile app for bank safe deposit lockers." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('sv-theme');
+          var isDark = false;
+          if (saved === 'dark') isDark = true;
+          else if (saved === 'light') isDark = false;
+          else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) isDark = true;
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.documentElement.style.colorScheme = 'dark';
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.documentElement.style.colorScheme = 'light';
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

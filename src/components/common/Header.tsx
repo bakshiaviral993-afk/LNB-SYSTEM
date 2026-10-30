@@ -494,9 +494,9 @@ export const Header: React.FC<HeaderProps> = ({
                       No notifications logged.
                     </div>
                   ) : (
-                    notifications.map(n => (
+                    notifications.map((n, idx) => (
                       <div
-                        key={n.id}
+                        key={`${n.id}-${idx}`}
                         onClick={() => markNotificationRead(n.id)}
                         className={`p-3.5 transition-colors cursor-pointer hover:bg-[#F5F7FA] flex items-start gap-3 ${
                           !n.read ? 'bg-[#2457A7]/5' : ''

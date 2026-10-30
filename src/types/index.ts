@@ -72,6 +72,7 @@ export interface LockerItem {
   outstandingRent?: number;
   keyNumber?: string;
   securityDepositRef?: string;
+  rentDueDate?: string;
 }
 
 export interface Holder {
@@ -86,6 +87,7 @@ export interface Holder {
   isPrimary: boolean;
   kycStatus: 'Verified' | 'Pending' | 'Needs Update';
   photoUrl?: string;
+  joinedDate?: string;
 }
 
 export interface Nominee {
@@ -102,6 +104,7 @@ export interface Nominee {
   phone: string;
   email?: string;
   address: string;
+  sharePercentage?: number;
   status: 'Registered' | 'Pending Verification' | 'Maker Reviewed' | 'Under Verification' | 'Pending Approval' | 'Modification Requested' | 'Cancelled';
   formDa1Reference: string;
   registeredOn: string;
@@ -129,7 +132,8 @@ export interface Appointment {
   branchName: string;
   date: string;
   timeSlot: string;
-  purpose: 'Routine Vault Access' | 'Operate with Joint Holder' | 'Nominee Verification' | 'Locker Surrender' | 'Inventory Inspection' | 'Deposit / Inspect Valuables';
+  durationMinutes?: 10 | 15 | 30;
+  purpose?: 'Routine Vault Access' | 'Operate with Joint Holder' | 'Nominee Verification' | 'Locker Surrender' | 'Inventory Inspection' | 'Deposit / Inspect Valuables' | string;
   accompanyingPersons?: number;
   attendees?: string;
   status: 'Confirmed' | 'Checked In' | 'Completed' | 'Cancelled' | 'Rescheduled';
@@ -138,6 +142,14 @@ export interface Appointment {
   completedTime?: string;
   escortOfficer?: string;
   specialInstructions?: string;
+  rescheduleReason?: string;
+  rescheduleFee?: number;
+  rescheduledFromDate?: string;
+  rescheduledFromSlot?: string;
+  cancellationReason?: string;
+  cancellationFee?: number;
+  cancelledAt?: string;
+  isHniPriority?: boolean;
 }
 
 export interface AccessLog {
@@ -155,6 +167,8 @@ export interface AccessLog {
   remarks?: string;
   isSuspicious?: boolean;
   disputeTicketId?: string;
+  inTime?: string;
+  status?: string;
 }
 
 export interface AccessDispute {
@@ -186,6 +200,7 @@ export interface PaymentRecord {
   lockerNumber: string;
   period: string; // e.g. "FY 2026 - 2027"
   amount: number;
+  baseRent?: number;
   taxGst: number;
   totalAmount: number;
   paymentDate: string;
@@ -367,16 +382,33 @@ export interface AuthorizedOperator {
 export interface WaitingListEntry {
   id: string;
   waitlistCode: string;
+  waitlistNumber?: string;
+  applicationReference?: string;
+  customerId?: string;
   customerName: string;
   cifNumber: string;
   phone: string;
   email: string;
+  city?: string;
   branchId: string;
   branchName: string;
   sizeRequested: LockerSize;
+  requestedDate?: string;
   joinedDate: string;
-  status: 'Waiting' | 'Locker Allocated' | 'Offer Sent' | 'Withdrawn';
+  currentQueuePosition?: number;
+  queuePosition?: string;
+  status: 'Waiting' | 'Locker Allocated' | 'Offer Sent' | 'Withdrawn' | 'Active Waitlist';
   priorityScore: number;
+  statusHistory?: {
+    status: string;
+    timestamp: string;
+    description: string;
+  }[];
+  notifications?: {
+    id: string;
+    title: string;
+    timestamp: string;
+  }[];
 }
 
 export interface KycRefreshRecord {

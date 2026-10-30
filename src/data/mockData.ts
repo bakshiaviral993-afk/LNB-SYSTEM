@@ -20138,30 +20138,129 @@ export const mockAuthorizedOperators: Record<string, AuthorizedOperator[]> = {
 
 export const mockWaitingList: WaitingListEntry[] = [
   {
+    id: 'wl-rahul-01',
+    waitlistCode: 'WL-MUM-2026-042',
+    waitlistNumber: 'WL-MUM-2026-042',
+    applicationReference: 'APP-91823',
+    customerId: 'cust-rahul-01',
+    customerName: 'Rahul Sharma',
+    cifNumber: 'CIF-9028192831',
+    phone: '+91 98101 23456',
+    email: 'rahul.sharma@enterprise-corp.in',
+    city: 'Mumbai',
+    branchId: 'br-mum-01',
+    branchName: 'Nariman Point Branch',
+    sizeRequested: 'Large',
+    requestedDate: '2026-10-14',
+    joinedDate: '2026-10-14',
+    currentQueuePosition: 2,
+    queuePosition: '#2 in Queue',
+    status: 'Waiting',
+    priorityScore: 94,
+    statusHistory: [
+      {
+        status: 'Waitlist Registered',
+        timestamp: '14 Oct 2026, 11:20 AM',
+        description: 'Application scrutinized under RBI guidelines and waitlist token assigned.'
+      },
+      {
+        status: 'Document Scrutiny Cleared',
+        timestamp: '16 Oct 2026, 03:45 PM',
+        description: 'Customer KYC & linked Premier Savings account lien confirmed.'
+      },
+      {
+        status: 'Queue Position Advanced',
+        timestamp: '22 Oct 2026, 10:30 AM',
+        description: 'Advanced from position #4 to #2 after regular quarterly surrender reconciliation.'
+      }
+    ],
+    notifications: [
+      {
+        id: 'wn-01',
+        title: 'Priority Notice: Large locker compartment expected to vacate on month-end.',
+        timestamp: '24 Oct 2026'
+      }
+    ]
+  },
+  {
+    id: 'wl-rahul-02',
+    waitlistCode: 'WL-BLR-2026-019',
+    waitlistNumber: 'WL-BLR-2026-019',
+    applicationReference: 'APP-84910',
+    customerId: 'cust-rahul-01',
+    customerName: 'Rahul Sharma',
+    cifNumber: 'CIF-9028192831',
+    phone: '+91 98101 23456',
+    email: 'rahul.sharma@enterprise-corp.in',
+    city: 'Bengaluru',
+    branchId: 'br-blr-03',
+    branchName: 'Whitefield Branch',
+    sizeRequested: 'Extra Large',
+    requestedDate: '2026-10-05',
+    joinedDate: '2026-10-05',
+    currentQueuePosition: 1,
+    queuePosition: '#1 in Queue (Next in Line)',
+    status: 'Offer Sent',
+    priorityScore: 98,
+    statusHistory: [
+      {
+        status: 'Waitlist Registered',
+        timestamp: '05 Oct 2026, 09:30 AM',
+        description: 'Waitlist token generated for Whitefield Sub-Vault.'
+      },
+      {
+        status: 'Offer Letter Dispatched',
+        timestamp: '25 Oct 2026, 02:15 PM',
+        description: 'Compartment XL-204 vacated. Formal allotment offer sent via secure SMS/Email.'
+      }
+    ],
+    notifications: [
+      {
+        id: 'wn-02',
+        title: 'Action Required: Allotment offer active. Please accept within 7 days.',
+        timestamp: '25 Oct 2026'
+      }
+    ]
+  },
+  {
     id: 'wl-01',
     waitlistCode: 'WL-DEL-MED-04',
+    waitlistNumber: 'WL-DEL-MED-04',
+    applicationReference: 'APP-77192',
+    customerId: 'cust-gaurav-99',
     customerName: 'Gaurav Khandelwal',
     cifNumber: 'CIF-8819203912',
     phone: '+91 98100 77211',
     email: 'g.khandelwal@logistics.in',
+    city: 'Delhi',
     branchId: 'br-del-01',
     branchName: 'Main Branch - Connaught Place',
     sizeRequested: 'Medium',
+    requestedDate: '2026-09-15',
     joinedDate: '2026-09-15',
+    currentQueuePosition: 4,
+    queuePosition: '#4 in Queue',
     status: 'Waiting',
     priorityScore: 92,
   },
   {
     id: 'wl-02',
     waitlistCode: 'WL-MUM-XL-01',
+    waitlistNumber: 'WL-MUM-XL-01',
+    applicationReference: 'APP-66291',
+    customerId: 'cust-pooja-88',
     customerName: 'Pooja Chhabra',
     cifNumber: 'CIF-9901827361',
     phone: '+91 98201 11204',
     email: 'pooja.c@investments.co',
+    city: 'Mumbai',
     branchId: 'br-mum-01',
     branchName: 'Nariman Point Branch',
     sizeRequested: 'Extra Large',
+    requestedDate: '2026-10-02',
     joinedDate: '2026-10-02',
+    currentQueuePosition: 3,
+    queuePosition: '#3 in Queue',
     status: 'Waiting',
     priorityScore: 88,
   }

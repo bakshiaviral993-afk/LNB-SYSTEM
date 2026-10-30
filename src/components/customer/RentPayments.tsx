@@ -14,7 +14,12 @@ import {
   ShieldCheck,
   ArrowRight,
   RefreshCw,
-  Landmark
+  Landmark,
+  Key,
+  ChevronRight,
+  Sparkles,
+  Lock,
+  Wallet
 } from 'lucide-react';
 
 export const RentPayments: React.FC = () => {
@@ -27,11 +32,11 @@ export const RentPayments: React.FC = () => {
     setSelectedLockerId
   } = useBanking();
 
-  const customerLockers = lockers.filter(l => l.customerId === 'cust-rahul-01');
+  const customerLockers = lockers.filter(l => l.customerId === 'cust-rahul-01' || l.customerName === 'Rahul Sharma');
   const [activeTab, setActiveTab] = useState<'pay' | 'history' | 'autodebit' | 'deposits'>('pay');
 
   // Payment Form State
-  const [payLockerId, setPayLockerId] = useState<string>(selectedLockerId || 'lck-042');
+  const [payLockerId, setPayLockerId] = useState<string>(selectedLockerId || customerLockers[0]?.id || 'lck-042');
   const [paymentMode, setPaymentMode] = useState<PaymentRecord['paymentMethod']>('Auto-Debit (CBS)');
   const [isOtpOpen, setIsOtpOpen] = useState(false);
   const [paymentSuccessRef, setPaymentSuccessRef] = useState<string | null>(null);
@@ -58,7 +63,7 @@ export const RentPayments: React.FC = () => {
 
   const handleOtpSuccess = () => {
     payLockerRent(payLockerId, paymentMode);
-    setPaymentSuccessRef(`TXN-ANB-${Date.now().toString().slice(-8)}`);
+    setPaymentSuccessRef(`TXN-SV-${Date.now().toString().slice(-8)}`);
   };
 
   const openReceipt = (rcpNum: string) => {
@@ -75,424 +80,384 @@ export const RentPayments: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 pb-12 text-[#1F1420] dark:text-[#F3ECF0]">
       
-      {/* Title & Navigation */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E3E8F0]">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-[#102544]">
-            Rent & Payment Management
-          </h1>
-          <p className="text-xs text-[#66758C] mt-0.5">
-            Transparent annual locker rental tariffs, instant settlement, auto-debit e-mandates, and linked deposit administration
-          </p>
+      {/* Module Title Card with Axis-inspired Burgundy Gradient */}
+      <div className="bg-gradient-to-r from-[#6B0E37] to-[#97144D] text-white p-4 rounded-3xl shadow-md border border-[#6B0E37]">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <CreditCard className="w-4 h-4 text-[#C9A24B]" />
+          <span className="text-xs font-mono uppercase tracking-wider text-[#C9A24B] font-extrabold">
+            Tariff & Payments
+          </span>
         </div>
+        <h1 className="text-xl font-black tracking-tight text-white">
+          Rent & Dues Settlement
+        </h1>
+        <p className="text-xs text-white/80 mt-0.5">
+          Annual locker rental tariffs, instant UPI/NetBanking, and e-mandates.
+        </p>
+      </div>
 
-        <div className="flex items-center gap-1 bg-[#F5F7FA] p-1 rounded-xl border border-[#E3E8F0] overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('pay')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
-              activeTab === 'pay' ? 'bg-[#102544] text-white shadow-xs' : 'text-[#66758C] hover:text-[#17263C]'
-            }`}
-          >
-            Pay Dues
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
-              activeTab === 'history' ? 'bg-[#102544] text-white shadow-xs' : 'text-[#66758C] hover:text-[#17263C]'
-            }`}
-          >
-            Payment History ({payments.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('autodebit')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
-              activeTab === 'autodebit' ? 'bg-[#102544] text-white shadow-xs' : 'text-[#66758C] hover:text-[#17263C]'
-            }`}
-          >
-            e-Mandate / Auto-Debit
-          </button>
-          <button
-            onClick={() => setActiveTab('deposits')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
-              activeTab === 'deposits' ? 'bg-[#102544] text-white shadow-xs' : 'text-[#66758C] hover:text-[#17263C]'
-            }`}
-          >
-            Linked Term Deposits (FDs)
-          </button>
-        </div>
+      {/* Mobile Tab Switcher */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        <button
+          onClick={() => setActiveTab('pay')}
+          className={`h-10 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all active-press cursor-pointer ${
+            activeTab === 'pay'
+              ? 'bg-[#97144D] text-white shadow-xs'
+              : 'bg-white dark:bg-[#20101D] text-[#6B5B68] dark:text-[#A898A4] border border-[#E8DFE5] dark:border-[#381B30] hover:bg-slate-50'
+          }`}
+        >
+          Pay Dues
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`h-10 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all active-press cursor-pointer ${
+            activeTab === 'history'
+              ? 'bg-[#97144D] text-white shadow-xs'
+              : 'bg-white dark:bg-[#20101D] text-[#6B5B68] dark:text-[#A898A4] border border-[#E8DFE5] dark:border-[#381B30] hover:bg-slate-50'
+          }`}
+        >
+          History ({payments.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('autodebit')}
+          className={`h-10 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all active-press cursor-pointer ${
+            activeTab === 'autodebit'
+              ? 'bg-[#97144D] text-white shadow-xs'
+              : 'bg-white dark:bg-[#20101D] text-[#6B5B68] dark:text-[#A898A4] border border-[#E8DFE5] dark:border-[#381B30] hover:bg-slate-50'
+          }`}
+        >
+          e-Mandate
+        </button>
+        <button
+          onClick={() => setActiveTab('deposits')}
+          className={`h-10 px-3.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all active-press cursor-pointer ${
+            activeTab === 'deposits'
+              ? 'bg-[#97144D] text-white shadow-xs'
+              : 'bg-white dark:bg-[#20101D] text-[#6B5B68] dark:text-[#A898A4] border border-[#E8DFE5] dark:border-[#381B30] hover:bg-slate-50'
+          }`}
+        >
+          Linked FDs
+        </button>
       </div>
 
       {/* TAB 1: PAY DUES */}
       {activeTab === 'pay' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="space-y-4">
           
-          {/* Pay Form (7 cols) */}
-          <div className="lg:col-span-7 bg-white border border-[#E3E8F0] rounded-2xl p-6 shadow-bank-card space-y-5 text-xs">
-            <h2 className="text-sm font-bold text-[#102544] flex items-center gap-2 border-b border-[#E3E8F0] pb-3">
-              <CreditCard className="w-4 h-4 text-[#2457A7]" />
-              <span>Settle Annual Locker Rental</span>
-            </h2>
-
-            {/* Success Banner if paid */}
-            {paymentSuccessRef && (
-              <div className="p-4 bg-[#16845B]/10 border border-[#16845B]/30 rounded-xl text-[#16845B] space-y-1">
-                <div className="flex items-center gap-2 font-bold text-[#16845B]">
-                  <CheckCircle2 className="w-4 h-4 text-[#16845B]" />
-                  <span>Payment Successfully Processed</span>
-                </div>
-                <p className="text-[11px] text-[#16845B]/90">
-                  Transaction Reference: <span className="font-mono font-semibold">{paymentSuccessRef}</span>. The locker renewal date has been extended by 1 year.
-                </p>
-                <div className="pt-2">
-                  <button
-                    onClick={() => setActiveTab('history')}
-                    className="text-xs font-semibold text-[#16845B] underline"
-                  >
-                    View Official Tax Invoice in Payment History →
-                  </button>
-                </div>
+          {/* Success Banner if paid */}
+          {paymentSuccessRef && (
+            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-300 dark:border-emerald-900/40 rounded-2xl text-[#1E8E5A] space-y-1.5 shadow-xs">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <CheckCircle2 className="w-5 h-5 text-[#1E8E5A]" />
+                <span>Payment Confirmed Successfully</span>
               </div>
-            )}
+              <p className="text-xs text-emerald-800 dark:text-emerald-300">
+                Official transaction reference: <span className="font-mono font-bold">{paymentSuccessRef}</span>. Digital GST invoice generated.
+              </p>
+              <button
+                onClick={() => openReceipt(paymentSuccessRef)}
+                className="mt-2 h-9 px-3 bg-[#97144D] text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-xs"
+              >
+                <Receipt className="w-4 h-4 text-[#C9A24B]" />
+                <span>Download Tax Invoice</span>
+              </button>
+            </div>
+          )}
 
-            <form onSubmit={handlePayClick} className="space-y-4">
-              <div>
-                <label className="block font-medium text-[#17263C] mb-1.5">
-                  Select Locker Account
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {customerLockers.map(lkr => (
-                    <div
-                      key={lkr.id}
-                      onClick={() => {
-                        setPayLockerId(lkr.id);
-                        setSelectedLockerId(lkr.id);
-                        setPaymentSuccessRef(null);
-                      }}
-                      className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                        payLockerId === lkr.id
-                          ? 'border-[#102544] bg-[#102544] text-white shadow-xs'
-                          : 'border-[#E3E8F0] bg-[#F5F7FA] text-[#17263C] hover:bg-[#E3E8F0]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold font-mono">Locker {lkr.lockerNumber}</span>
-                        {lkr.outstandingRent && lkr.outstandingRent > 0 ? (
-                          <span className="text-[10px] bg-[#C83E44] text-white px-2 py-0.5 rounded font-mono font-bold">
-                            Due ₹{lkr.outstandingRent.toLocaleString('en-IN')}
-                          </span>
-                        ) : (
-                          <span className={`text-[10px] px-2 py-0.5 rounded ${payLockerId === lkr.id ? 'bg-white/20 text-white' : 'bg-white text-[#66758C] border border-[#E3E8F0]'}`}>
-                            Clear
-                          </span>
-                        )}
-                      </div>
-                      <div className={`text-[11px] mt-1 ${payLockerId === lkr.id ? 'text-white/80' : 'text-[#66758C]'}`}>
-                        {lkr.branchName}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Payment Mode Selection */}
-              <div>
-                <label className="block font-medium text-[#17263C] mb-1.5">
-                  Select Settlement Channel
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {[
-                    { id: 'Auto-Debit (CBS)', label: 'Linked Savings Auto-Debit', desc: 'A/c 5010049281720 (Zero fees)' },
-                    { id: 'Net Banking', label: 'Retail Net Banking', desc: 'Instant authorization via CBS gateway' },
-                    { id: 'UPI', label: 'Unified Payments Interface (UPI)', desc: 'Instant UPI dynamic QR / VPA' },
-                    { id: 'Branch Counter Cash/Cheque', label: 'Pay at Branch Vault Desk', desc: 'Pay with physical cheque/slip' },
-                  ].map(m => (
-                    <div
-                      key={m.id}
-                      onClick={() => setPaymentMode(m.id as PaymentRecord['paymentMethod'])}
-                      className={`p-3.5 rounded-xl border cursor-pointer transition-colors ${
-                        paymentMode === m.id
-                          ? 'border-[#2457A7] bg-[#2457A7]/10 text-[#102544] font-medium'
-                          : 'border-[#E3E8F0] bg-[#F5F7FA] text-[#17263C] hover:bg-[#E3E8F0]'
-                      }`}
-                    >
-                      <div className="font-bold">{m.label}</div>
-                      <div className="text-[11px] text-[#66758C] mt-0.5">{m.desc}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Security Authorization Notice */}
-              <div className="p-3.5 bg-[#F5F7FA] border border-[#E3E8F0] rounded-xl text-[11px] text-[#66758C] flex items-start gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-[#16845B] shrink-0 mt-0.5" />
-                <div>
-                  <strong className="text-[#102544]">Enterprise 2FA Protected:</strong> Settle payment securely. Digital tax invoice with CGST and SGST details will be generated and filed in Document Vault.
-                </div>
-              </div>
-
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 text-xs font-semibold text-white bg-[#102544] hover:bg-[#0B1730] rounded-xl transition-colors shadow-xs flex items-center gap-2"
-                >
-                  <CreditCard className="w-4 h-4 text-[#008C88]" />
-                  <span>Authorize Payment of ₹{totalDue.toLocaleString('en-IN')}</span>
-                </button>
-              </div>
-
-            </form>
-          </div>
-
-          {/* Dues Breakdown Summary (5 cols) */}
-          <div className="lg:col-span-5 bg-[#F5F7FA] border border-[#E3E8F0] rounded-2xl p-6 shadow-bank-card space-y-4 text-xs">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#66758C] border-b border-[#E3E8F0] pb-2">
-              Locker Tariff & Dues Breakdown
+          {/* Dues Breakdown Summary Card */}
+          <div className="bg-[#FAF6F8] dark:bg-[#20101D] border border-[#E8DFE5] dark:border-[#381B30] rounded-3xl p-4 shadow-sm space-y-3 text-xs">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#6B5B68] dark:text-[#A898A4] border-b border-[#E8DFE5] dark:border-[#381B30] pb-2">
+              Tariff & Dues Summary
             </h3>
 
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-[#66758C]">Locker Identification:</span>
-                <span className="font-bold text-[#102544] font-mono">
-                  Locker {selectedLockerObj?.lockerNumber} ({selectedLockerObj?.size})
+            <div className="space-y-2.5">
+              <div className="flex justify-between items-center">
+                <span className="text-[#6B5B68] dark:text-[#A898A4]">Compartment:</span>
+                <span className="font-bold text-[#1F1420] dark:text-white font-mono text-sm">
+                  Locker #{selectedLockerObj?.lockerNumber} ({selectedLockerObj?.size})
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-[#66758C]">Branch Name:</span>
-                <span className="text-[#17263C] text-right font-medium truncate max-w-[180px]">
+              <div className="flex justify-between items-center">
+                <span className="text-[#6B5B68] dark:text-[#A898A4]">Branch:</span>
+                <span className="text-[#1F1420] dark:text-white font-medium truncate max-w-[200px]">
                   {selectedLockerObj?.branchName}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-[#66758C]">Billing Cycle:</span>
-                <span className="font-mono text-[#17263C]">FY 2026 - 2027</span>
+              <div className="flex justify-between items-center">
+                <span className="text-[#6B5B68] dark:text-[#A898A4]">Billing Period:</span>
+                <span className="font-mono text-[#1F1420] dark:text-white">FY 2026 - 2027</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-[#66758C]">Base Annual Rent:</span>
-                <span className="font-mono font-medium text-[#102544] tabular-nums">
+              <div className="flex justify-between items-center">
+                <span className="text-[#6B5B68] dark:text-[#A898A4]">Base Annual Tariff:</span>
+                <span className="font-mono font-medium text-[#1F1420] dark:text-white">
                   ₹{rentBase.toLocaleString('en-IN')}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-[#66758C]">CGST (9%):</span>
-                <span className="font-mono text-[#17263C] tabular-nums">₹{(gst / 2).toLocaleString('en-IN')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#66758C]">SGST (9%):</span>
-                <span className="font-mono text-[#17263C] tabular-nums">₹{(gst / 2).toLocaleString('en-IN')}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-[#6B5B68] dark:text-[#A898A4]">GST (18%):</span>
+                <span className="font-mono text-[#1F1420] dark:text-white">₹{gst.toLocaleString('en-IN')}</span>
               </div>
 
-              <div className="pt-3 border-t border-[#E3E8F0] flex justify-between font-bold text-sm text-[#102544]">
-                <span>Total Payable Amount</span>
-                <span className="font-mono text-[#16845B] tabular-nums">₹{totalDue.toLocaleString('en-IN')}</span>
+              <div className="pt-2.5 border-t border-[#E8DFE5] dark:border-[#381B30] flex justify-between items-center font-bold text-sm text-[#1F1420] dark:text-white">
+                <span>Total Payable</span>
+                <span className="font-mono text-base text-[#1E8E5A]">
+                  ₹{totalDue.toLocaleString('en-IN')}
+                </span>
               </div>
-            </div>
-
-            <div className="p-3.5 bg-white border border-[#E3E8F0] rounded-xl text-[11px] text-[#66758C] space-y-1">
-              <p>• Rental paid in advance is non-refundable during the billing year.</p>
-              <p>• TDS is not applicable on locker rental charges under Section 194I for individuals.</p>
             </div>
           </div>
 
-        </div>
-      )}
+          {/* Payment Options Form */}
+          <form onSubmit={handlePayClick} className="bg-white dark:bg-[#20101D] border border-[#E8DFE5] dark:border-[#381B30] rounded-3xl p-4 shadow-sm space-y-4 text-xs">
+            <h2 className="text-sm font-bold text-[#1F1420] dark:text-white flex items-center gap-2 border-b border-[#E8DFE5] dark:border-[#381B30] pb-2.5">
+              <CreditCard className="w-4 h-4 text-[#97144D] dark:text-[#E895B8]" />
+              <span>Payment Details</span>
+            </h2>
 
-      {/* TAB 2: PAYMENT HISTORY & INVOICES */}
-      {activeTab === 'history' && (
-        <div className="bg-white border border-[#E3E8F0] rounded-2xl overflow-hidden shadow-bank-card text-xs">
-          <div className="px-5 py-4 border-b border-[#E3E8F0] flex items-center justify-between">
-            <h3 className="text-sm font-bold text-[#102544]">
-              Payment Transactions & Official Tax Invoices ({payments.length})
-            </h3>
-            <span className="text-[#66758C] font-mono text-[11px]">Authorized Bank Receipts</span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-[#F5F7FA] text-[#102544] border-b border-[#E3E8F0]">
-                  <th className="py-3 px-4 font-semibold">Receipt #</th>
-                  <th className="py-3 px-4 font-semibold">Transaction Ref</th>
-                  <th className="py-3 px-4 font-semibold">Locker</th>
-                  <th className="py-3 px-4 font-semibold">Billing Period</th>
-                  <th className="py-3 px-4 font-semibold text-right">Base Rent</th>
-                  <th className="py-3 px-4 font-semibold text-right">GST (18%)</th>
-                  <th className="py-3 px-4 font-semibold text-right">Total Paid</th>
-                  <th className="py-3 px-4 font-semibold">Payment Mode</th>
-                  <th className="py-3 px-4 font-semibold text-center">Status</th>
-                  <th className="py-3 px-4 font-semibold text-right">Invoice</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E3E8F0]">
-                {payments.map(p => (
-                  <tr key={p.id} className="hover:bg-[#F5F7FA] transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-[#102544]">
-                      {p.receiptNumber}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-[#66758C] text-[11px]">
-                      {p.transactionRef}
-                    </td>
-                    <td className="py-3 px-4 font-bold text-[#17263C]">
-                      Locker {p.lockerNumber}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-[#66758C]">
-                      {p.period}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono text-[#17263C] tabular-nums">
-                      ₹{p.amount.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono text-[#66758C] tabular-nums">
-                      ₹{p.taxGst.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-[#102544] tabular-nums">
-                      ₹{p.totalAmount.toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-3 px-4 text-[#17263C] font-medium">
-                      {p.paymentMethod}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <StatusBadge status={p.status} size="sm" />
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => openReceipt(p.receiptNumber)}
-                        className="px-2.5 py-1 text-[11px] font-semibold text-[#2457A7] bg-[#2457A7]/10 border border-[#2457A7]/25 rounded hover:bg-[#2457A7]/20 flex items-center gap-1 ml-auto transition-colors"
-                      >
-                        <Receipt className="w-3 h-3" />
-                        <span>View</span>
-                      </button>
-                    </td>
-                  </tr>
+            {/* Target Locker Select */}
+            <div>
+              <label className="block text-xs font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
+                Select Compartment
+              </label>
+              <select
+                value={payLockerId}
+                onChange={e => {
+                  setPayLockerId(e.target.value);
+                  setSelectedLockerId(e.target.value);
+                }}
+                className="w-full h-11 bg-[#FAF6F8] dark:bg-[#2A1527] border border-[#E8DFE5] dark:border-[#381B30] rounded-xl px-3 text-xs font-semibold text-[#1F1420] dark:text-white focus:outline-none"
+              >
+                {customerLockers.map(lkr => (
+                  <option key={lkr.id} value={lkr.id}>
+                    Locker #{lkr.lockerNumber} ({lkr.branchName}) {lkr.outstandingRent ? '— Overdue' : ''}
+                  </option>
                 ))}
-              </tbody>
-            </table>
+              </select>
+            </div>
+
+            {/* Payment Method Select */}
+            <div>
+              <label className="block text-xs font-bold text-[#6B5B68] dark:text-[#A898A4] mb-1">
+                Select Payment Method
+              </label>
+              <div className="space-y-2">
+                {[
+                  { id: 'Auto-Debit (CBS)', label: 'Auto-Debit from Linked Savings', sub: 'Account: 5010049281720' },
+                  { id: 'UPI', label: 'UPI / Bharat QR', sub: 'Instant via Google Pay / PhonePe / BHIM' },
+                  { id: 'Net Banking', label: 'SafeVault NetBanking', sub: 'Direct CBS instantaneous debit' },
+                  { id: 'Debit Card', label: 'Debit Card (RuPay / Visa / Master)', sub: '3D Secure OTP verification' }
+                ].map(opt => {
+                  const isChecked = paymentMode === opt.id;
+                  return (
+                    <div
+                      key={opt.id}
+                      onClick={() => setPaymentMode(opt.id as any)}
+                      className={`p-3 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+                        isChecked
+                          ? 'border-[#97144D] bg-[#97144D]/5 ring-2 ring-[#97144D]/25'
+                          : 'border-[#E8DFE5] dark:border-[#381B30] bg-[#FAF6F8] dark:bg-[#2A1527] hover:bg-white dark:hover:bg-[#33152B]'
+                      }`}
+                    >
+                      <div>
+                        <span className="font-bold text-xs text-[#1F1420] dark:text-white block">
+                          {opt.label}
+                        </span>
+                        <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4] block mt-0.5">
+                          {opt.sub}
+                        </span>
+                      </div>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        isChecked ? 'border-[#97144D] bg-[#97144D]' : 'border-slate-300 dark:border-slate-600'
+                      }`}>
+                        {isChecked && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Pay Button */}
+            <div className="pt-2">
+              <button
+                type="submit"
+                className="w-full h-12 bg-[#97144D] hover:bg-[#6B0E37] text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active-press"
+              >
+                <CreditCard className="w-4 h-4 text-[#C9A24B]" />
+                <span>Authorize Payment of ₹{totalDue.toLocaleString('en-IN')}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* TAB 2: PAYMENT HISTORY */}
+      {activeTab === 'history' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-base font-bold text-[#1F1420] dark:text-white">
+              Transaction History ({payments.length})
+            </h3>
+            <span className="text-xs text-[#6B5B68] dark:text-[#A898A4]">Official Invoices</span>
+          </div>
+
+          <div className="space-y-2.5">
+            {payments.map(p => (
+              <div
+                key={p.id}
+                className="p-4 bg-white dark:bg-[#20101D] border border-[#E8DFE5] dark:border-[#381B30] rounded-2xl shadow-sm text-xs space-y-3"
+              >
+                <div className="flex items-center justify-between border-b border-[#E8DFE5] dark:border-[#381B30] pb-2.5">
+                  <div>
+                    <span className="font-mono font-bold text-sm text-[#97144D] dark:text-[#E895B8]">
+                      Receipt #{p.receiptNumber}
+                    </span>
+                    <span className="text-xs text-[#6B5B68] dark:text-[#A898A4] block mt-0.5">
+                      Locker #{p.lockerNumber} · {p.period}
+                    </span>
+                  </div>
+                  <StatusBadge status={p.status} size="sm" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-[#FAF6F8] dark:bg-[#2A1527] p-2 rounded-xl border border-[#E8DFE5] dark:border-[#381B30]">
+                    <span className="text-[#6B5B68] dark:text-[#A898A4] block text-xs">Total Amount</span>
+                    <span className="font-mono font-bold text-sm text-[#1F1420] dark:text-white">
+                      ₹{p.totalAmount.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div className="bg-[#FAF6F8] dark:bg-[#2A1527] p-2 rounded-xl border border-[#E8DFE5] dark:border-[#381B30]">
+                    <span className="text-[#6B5B68] dark:text-[#A898A4] block text-xs">Payment Method</span>
+                    <span className="font-semibold text-xs text-[#1F1420] dark:text-white truncate block mt-0.5">
+                      {p.paymentMethod}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
+                  <span className="font-mono">{p.transactionRef}</span>
+                  <button
+                    onClick={() => openReceipt(p.receiptNumber)}
+                    className="h-8 px-3 rounded-lg bg-[#97144D]/10 hover:bg-[#97144D]/20 text-[#97144D] dark:text-[#E895B8] font-bold text-xs flex items-center gap-1 transition-colors"
+                  >
+                    <Receipt className="w-3.5 h-3.5" />
+                    <span>View Tax Invoice</span>
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* TAB 3: AUTO-DEBIT / NACH */}
+      {/* TAB 3: AUTO-DEBIT / e-MANDATE */}
       {activeTab === 'autodebit' && (
-        <div className="max-w-2xl mx-auto bg-white border border-[#E3E8F0] rounded-xl p-6 shadow-xs space-y-5 text-xs">
+        <div className="bg-white dark:bg-[#20101D] border border-[#E8DFE5] dark:border-[#381B30] rounded-3xl p-4 shadow-sm space-y-4 text-xs">
           <div>
-            <h3 className="text-sm font-bold text-[#102544]">
-              Automated Annual Locker Rental Debit (e-Mandate)
+            <h3 className="text-base font-bold text-[#1F1420] dark:text-white">
+              Annual e-Mandate (Auto-Debit)
             </h3>
-            <p className="text-xs text-[#66758C] mt-0.5">
-              Avoid default penalty and lock freeze by maintaining automatic CBS account deduction
+            <p className="text-xs text-[#6B5B68] dark:text-[#A898A4] mt-0.5">
+              Avoid overdue fees by keeping automated deduction active.
             </p>
           </div>
 
-          <div className="space-y-4">
-            <div className="p-4 bg-[#F5F7FA] rounded-xl border border-[#E3E8F0] space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-[#102544] text-xs block">Active CBS Standing Instruction</span>
-                  <span className="text-[11px] text-[#66758C] font-mono tabular-nums">Mandate Ref: NACH/ANB/2024/001928</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={autoDebitEnabled}
-                    onChange={e => setAutoDebitEnabled(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-[#E3E8F0] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#E3E8F0] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#102544]"></div>
-                </label>
+          <div className="p-3.5 bg-[#FAF6F8] dark:bg-[#2A1527] rounded-2xl border border-[#E8DFE5] dark:border-[#381B30] space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="font-bold text-[#1F1420] dark:text-white text-xs block">Active Standing Instruction</span>
+                <span className="text-xs text-[#6B5B68] dark:text-[#A898A4] font-mono">Mandate: NACH/SV/2026/001928</span>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-[11px]">
-                <div>
-                  <span className="text-[#66758C] block">Deduction Account</span>
-                  <span className="font-mono tabular-nums font-medium text-[#17263C]">{autoDebitAccount}</span>
-                </div>
-                <div>
-                  <span className="text-[#66758C] block">Mandate Ceiling Cap</span>
-                  <span className="font-mono tabular-nums font-medium text-[#17263C]">₹{maxDebitCap} per annum</span>
-                </div>
-              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoDebitEnabled}
+                  onChange={e => setAutoDebitEnabled(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-[#E8DFE5] dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#E8DFE5] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#97144D]"></div>
+              </label>
             </div>
 
-            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg text-[11px] text-amber-900 flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <span>
-                Auto-debit executes 7 days prior to renewal due date. In case of insufficient balance, an SMS advisory is triggered and manual clearance is required.
-              </span>
-            </div>
-
-            <div className="pt-2 flex items-center justify-end gap-3">
-              {mandateSavedMsg && (
-                <span className="text-xs text-[#16845B] font-semibold flex items-center gap-1 animate-in fade-in">
-                  <CheckCircle2 className="w-4 h-4 text-[#16845B]" />
-                  e-Mandate configuration updated successfully!
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setMandateSavedMsg(true);
-                  setTimeout(() => setMandateSavedMsg(false), 3500);
-                }}
-                className="px-5 py-2 bg-[#102544] hover:bg-[#0B1730] text-white font-semibold rounded-lg text-xs shadow-xs transition-colors"
-              >
-                Save Mandate Settings
-              </button>
+            <div className="space-y-2 pt-2 border-t border-[#E8DFE5] dark:border-[#381B30] text-xs">
+              <div className="flex justify-between">
+                <span className="text-[#6B5B68] dark:text-[#A898A4]">Deduction Account:</span>
+                <span className="font-mono font-medium text-[#1F1420] dark:text-white">5010049281720</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#6B5B68] dark:text-[#A898A4]">Mandate Ceiling:</span>
+                <span className="font-mono font-medium text-[#1F1420] dark:text-white">₹15,000 / yr</span>
+              </div>
             </div>
           </div>
+
+          <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-900/40 rounded-2xl text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <span>
+              Auto-debit executes 7 days prior to renewal due date. In case of insufficient balance, an SMS advisory is triggered.
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMandateSavedMsg(true);
+              setTimeout(() => setMandateSavedMsg(false), 3500);
+            }}
+            className="w-full h-11 bg-[#97144D] hover:bg-[#6B0E37] text-white font-bold rounded-xl text-xs shadow-xs transition-colors active-press cursor-pointer"
+          >
+            {mandateSavedMsg ? 'Mandate Settings Saved!' : 'Save Mandate Settings'}
+          </button>
         </div>
       )}
 
       {/* TAB 4: LINKED DEPOSITS */}
       {activeTab === 'deposits' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-[#102544]">
-              Linked Security Term Deposits (FD Accounts)
+        <div className="space-y-3">
+          <div className="px-1">
+            <h3 className="text-base font-bold text-[#1F1420] dark:text-white">
+              Linked Security FDs
             </h3>
-            <span className="text-xs text-[#66758C]">Security guarantee as per RBI circular</span>
+            <p className="text-xs text-[#6B5B68] dark:text-[#A898A4]">
+              Security term deposits held under bank lien per RBI guidelines.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+          <div className="space-y-3 text-xs">
             {customerLockers.map(lkr => (
               <div
                 key={lkr.id}
-                className="p-5 bg-white border border-[#E3E8F0] rounded-xl shadow-xs space-y-4"
+                className="p-4 bg-white dark:bg-[#20101D] border border-[#E8DFE5] dark:border-[#381B30] rounded-2xl shadow-sm space-y-3"
               >
-                <div className="flex items-center justify-between border-b border-[#E3E8F0] pb-3">
+                <div className="flex items-center justify-between border-b border-[#E8DFE5] dark:border-[#381B30] pb-2.5">
                   <div className="flex items-center gap-2">
-                    <Landmark className="w-4 h-4 text-[#2457A7]" />
-                    <span className="font-bold text-[#102544]">Locker {lkr.lockerNumber} Deposit</span>
+                    <Landmark className="w-4 h-4 text-[#97144D] dark:text-[#E895B8]" />
+                    <span className="font-bold text-[#1F1420] dark:text-white">Locker #{lkr.lockerNumber} Deposit</span>
                   </div>
-                  <span className="text-[10px] font-bold text-[#16845B] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                    Active Bank Lien
+                  <span className="text-xs font-bold text-[#1E8E5A] bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                    Active Lien
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-[11px]">
-                  <div>
-                    <span className="text-[#66758C] block">FD Account Number</span>
-                    <span className="font-mono tabular-nums font-medium text-[#102544]">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-[#FAF6F8] dark:bg-[#2A1527] p-2 rounded-xl border border-[#E8DFE5] dark:border-[#381B30]">
+                    <span className="text-[#6B5B68] dark:text-[#A898A4] block text-xs">FD Number</span>
+                    <span className="font-mono font-medium text-[#1F1420] dark:text-white">
                       FD-{lkr.id === 'lck-125' ? '88219001' : '91042883'}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-[#66758C] block">Principal Held</span>
-                    <span className="font-mono tabular-nums font-bold text-[#102544]">
+                  <div className="bg-[#FAF6F8] dark:bg-[#2A1527] p-2 rounded-xl border border-[#E8DFE5] dark:border-[#381B30]">
+                    <span className="text-[#6B5B68] dark:text-[#A898A4] block text-xs">Principal Held</span>
+                    <span className="font-mono font-bold text-[#1F1420] dark:text-white">
                       ₹{lkr.securityDeposit.toLocaleString('en-IN')}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-[#66758C] block">Interest Rate</span>
-                    <span className="font-mono tabular-nums font-medium text-[#16845B]">7.10% p.a. (Compounded)</span>
-                  </div>
-                  <div>
-                    <span className="text-[#66758C] block">Lien Holder</span>
-                    <span className="font-medium text-[#17263C]">National Bank</span>
-                  </div>
                 </div>
 
-                <div className="p-3 bg-[#F5F7FA] rounded-lg border border-[#E3E8F0] text-[11px] text-[#66758C] leading-relaxed">
-                  Principal deposit remains fully intact and refundable upon locker surrender. Quarterly interest is automatically credited to your linked Premier Savings Account.
+                <div className="p-2.5 bg-[#FAF6F8] dark:bg-[#2A1527] rounded-xl border border-[#E8DFE5] dark:border-[#381B30] text-xs text-[#6B5B68] dark:text-[#A898A4]">
+                  Interest earns 7.10% p.a. and is credited to your linked Premier savings account quarterly.
                 </div>
               </div>
             ))}

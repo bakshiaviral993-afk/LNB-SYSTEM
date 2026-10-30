@@ -62,6 +62,8 @@ import {
   mockAccessDisputes,
   mockScenarios
 } from '../data/mockData';
+import { generateQueueToken, generateWaitingListNumber } from '../utils/queueToken';
+import { computeCancellationCharge, computeRescheduleCharge } from '../config/policy';
 
 export type AppRoute = '/' | '/login' | '/dashboard';
 
@@ -124,6 +126,7 @@ interface BankingContextType {
   // Customer actions
   applyForLocker: (app: Omit<LockerApplication, 'id' | 'applicationNumber' | 'appliedDate' | 'status'>) => string;
   joinWaitingList: (branchId: string, sizeRequested: LockerSize) => string;
+  leaveWaitingList: (waitlistId: string) => void;
   bookAppointment: (apt: Omit<Appointment, 'id' | 'tokenNumber' | 'status' | 'qrCodeToken'>) => string;
   cancelAppointment: (aptId: string) => void;
   rescheduleAppointment: (aptId: string, newDate: string, newSlot: string) => void;
@@ -274,7 +277,16 @@ export const BankingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
     const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_notifications`);
-    return saved ? JSON.parse(saved) : mockNotifications;
+    const initialList: NotificationItem[] = saved ? JSON.parse(saved) : mockNotifications;
+    const seenIds = new Set<string>();
+    return initialList.map((item, idx) => {
+      let uniqueId = item.id;
+      if (!uniqueId || seenIds.has(uniqueId)) {
+        uniqueId = `notif-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`;
+      }
+      seenIds.add(uniqueId);
+      return { ...item, id: uniqueId };
+    });
   });
 
   const [documents, setDocuments] = useState<StoredDocument[]>(() => {
@@ -426,8 +438,9 @@ export const BankingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     branchName: string,
     details: string
   ) => {
+    const uniqueAuditId = `aud-${Date.now()}-${Math.floor(Math.random() * 100000)}-${Math.random().toString(36).substring(2, 7)}`;
     const newLog: AuditLogItem = {
-      id: `aud-${Date.now()}`,
+      id: uniqueAuditId,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + ' IST',
       user,
       userRole,
@@ -444,15 +457,19 @@ export const BankingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Helper to add notification
   const addNotification = (title: string, message: string, category: NotificationItem['category']) => {
+    const uniqueNotifId = `notif-${Date.now()}-${Math.floor(Math.random() * 100000)}-${Math.random().toString(36).substring(2, 7)}`;
     const item: NotificationItem = {
-      id: `notif-${Date.now()}`,
+      id: uniqueNotifId,
       title,
       message,
       timestamp: 'Just now',
       category,
       read: false,
     };
-    setNotifications(prev => [item, ...prev]);
+    setNotifications(prev => {
+      const filtered = prev.filter(n => n.id !== uniqueNotifId);
+      return [item, ...filtered];
+    });
   };
 
   // Customer actions
@@ -474,10 +491,11 @@ export const BankingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const joinWaitingList = (branchId: string, sizeRequested: LockerSize) => {
     const branch = branches.find(b => b.id === branchId) || branches[0];
-    const wlCode = `WL-${branch.name.substring(0, 3).toUpperCase()}-${sizeRequested.substring(0, 2).toUpperCase()}-${Math.floor(10 + Math.random() * 89)}`;
+    const wlGen = generateWaitingListNumber(branch.name, sizeRequested);
     const newEntry: WaitingListEntry = {
-      id: `wl-${Date.now()}`,
-      waitlistCode: wlCode,
+      id: `wl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      waitlistCode: wlGen.wlNumber,
+      waitlistNumber: wlGen.wlNumber,
       customerName: 'Rahul Sharma',
       cifNumber: 'CIF-9028192831',
       phone: '+91 98101 23456',
@@ -486,19 +504,38 @@ export const BankingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       branchName: branch.name,
       sizeRequested,
       joinedDate: new Date().toISOString().split('T')[0],
+      currentQueuePosition: wlGen.position,
+      queuePosition: `#${wlGen.position} in Queue (${wlGen.estimatedAllotmentWindow})`,
       status: 'Waiting',
       priorityScore: 95,
+      statusHistory: [
+        {
+          status: 'Joined Waiting List',
+          timestamp: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          description: `Waitlist entry ${wlGen.wlNumber} registered for ${sizeRequested} at ${branch.name}.`
+        }
+      ]
     };
     setWaitingList(prev => [newEntry, ...prev]);
-    addAudit('Rahul Sharma', 'Customer', 'Joined Branch Locker Waiting List', 'Waitlist', wlCode, branch.name, `Position registered for ${sizeRequested} compartment.`);
-    addNotification('Waiting List Registered', `Position registered under code ${wlCode} for ${sizeRequested} locker at ${branch.name}. You will be notified when a unit is vacated.`, 'Service Request');
-    return wlCode;
+    addAudit('Rahul Sharma', 'Customer', 'Joined Branch Locker Waiting List', 'Waitlist', wlGen.wlNumber, branch.name, `Position #${wlGen.position} registered for ${sizeRequested} compartment.`);
+    addNotification('Waiting List Registered', `You are #${wlGen.position} for ${sizeRequested} locker at ${branch.name} (${wlGen.wlNumber}). Estimated allotment: ${wlGen.estimatedAllotmentWindow}.`, 'Service Request');
+    return wlGen.wlNumber;
+  };
+
+  const leaveWaitingList = (waitlistId: string) => {
+    const target = waitingList.find(w => w.id === waitlistId || w.waitlistCode === waitlistId || w.waitlistNumber === waitlistId);
+    setWaitingList(prev => prev.filter(w => w.id !== waitlistId && w.waitlistCode !== waitlistId && w.waitlistNumber !== waitlistId));
+    if (target) {
+      addAudit('Rahul Sharma', 'Customer', 'Left Locker Waiting List', 'Waitlist', target.waitlistCode, target.branchName, 'Customer voluntarily withdrew waitlist registration.');
+      addNotification('Withdrawn from Waiting List', `Successfully left waiting list for ${target.sizeRequested} locker at ${target.branchName}. No charges applied.`, 'Service Request');
+    }
   };
 
   const bookAppointment = (aptData: Omit<Appointment, 'id' | 'tokenNumber' | 'status' | 'qrCodeToken'>) => {
     const aptId = `apt-${Date.now()}`;
-    const token = `VLT-${aptData.branchName.substring(0, 3).toUpperCase()}-2610-${Math.floor(10 + Math.random() * 89)}`;
-    const qrToken = `ANB-QR-${aptData.lockerNumber}-${Date.now().toString().slice(-4)}`;
+    const queueData = generateQueueToken(aptData.branchName, aptData.date);
+    const token = queueData.token;
+    const qrToken = `SV-QR-${aptData.lockerNumber}-${Date.now().toString().slice(-4)}`;
     const newApt: Appointment = {
       ...aptData,
       id: aptId,
@@ -507,27 +544,86 @@ export const BankingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       qrCodeToken: qrToken,
     };
     setAppointments(prev => [newApt, ...prev]);
-    addAudit(aptData.customerName, 'Customer', 'Vault Visit Booked', 'Appointment', token, aptData.branchName, `Slot reserved for ${aptData.date} at ${aptData.timeSlot} (${aptData.purpose}).`);
-    addNotification('Appointment Confirmed', `Token ${token} issued for Locker ${aptData.lockerNumber} on ${aptData.date} (${aptData.timeSlot}).`, 'Appointment');
+    addAudit(aptData.customerName, 'Customer', 'Vault Visit Booked', 'Appointment', token, aptData.branchName, `Queue Token ${token} reserved (#${queueData.sequenceNumber} in queue) for ${aptData.date} at ${aptData.timeSlot}.`);
+    addNotification('Appointment Confirmed', `Queue Token ${token} issued (Position #${queueData.sequenceNumber}, ~${queueData.estimatedWaitMinutes}m wait) for Locker ${aptData.lockerNumber} on ${aptData.date}.`, 'Appointment');
     return token;
   };
 
   const cancelAppointment = (aptId: string) => {
-    setAppointments(prev => prev.map(a => a.id === aptId ? { ...a, status: 'Cancelled' } : a));
-    const apt = appointments.find(a => a.id === aptId);
-    if (apt) {
-      addAudit('Rahul Sharma', 'Customer', 'Appointment Cancelled', 'Appointment', apt.tokenNumber, apt.branchName, `Customer cancelled slot for ${apt.date}.`);
-      addNotification('Appointment Cancelled', `Your visit appointment ${apt.tokenNumber} has been cancelled.`, 'Appointment');
+    const apt = appointments.find(a => a.id === aptId || a.tokenNumber === aptId);
+    if (!apt) return;
+
+    // Compute fee as per bank policy
+    const fee = computeCancellationCharge(apt.date, apt.timeSlot);
+    if (fee.totalCharge > 0) {
+      const txnRef = `TXN-SV-${Date.now().toString().slice(-8)}`;
+      const newPay: PaymentRecord = {
+        id: `pay-${Date.now()}`,
+        transactionRef: txnRef,
+        lockerId: apt.lockerId,
+        lockerNumber: apt.lockerNumber,
+        period: 'Ad-hoc Operational Fee',
+        amount: fee.baseCharge,
+        taxGst: fee.gstAmount,
+        totalAmount: fee.totalCharge,
+        paymentDate: new Date().toISOString().split('T')[0],
+        paymentMethod: 'Auto-Debit (CBS)',
+        status: 'Success',
+        receiptNumber: `RCP-FEE-${Date.now().toString().slice(-6)}`
+      };
+      setPayments(prev => [newPay, ...prev]);
+      addAudit('Rahul Sharma', 'Customer', 'Cancellation Charge Debited', 'Billing', txnRef, apt.branchName, `Debited ₹${fee.totalCharge} (${fee.slabLabel}) from linked account.`);
     }
+
+    setAppointments(prev => prev.map(a => (a.id === apt.id ? { ...a, status: 'Cancelled' } : a)));
+    addAudit('Rahul Sharma', 'Customer', 'Appointment Cancelled', 'Appointment', apt.tokenNumber, apt.branchName, `Cancelled slot for ${apt.date}. Queue token released.`);
+    addNotification('Appointment Cancelled', `Your visit appointment ${apt.tokenNumber} has been cancelled. ${fee.totalCharge > 0 ? `Policy charge ₹${fee.totalCharge} debited.` : 'Free cancellation applied.'}`, 'Appointment');
   };
 
   const rescheduleAppointment = (aptId: string, newDate: string, newSlot: string) => {
-    setAppointments(prev => prev.map(a => a.id === aptId ? { ...a, date: newDate, timeSlot: newSlot, status: 'Rescheduled' } : a));
-    const apt = appointments.find(a => a.id === aptId);
-    if (apt) {
-      addAudit('Rahul Sharma', 'Customer', 'Appointment Rescheduled', 'Appointment', apt.tokenNumber, apt.branchName, `Slot updated to ${newDate} (${newSlot}).`);
-      addNotification('Appointment Rescheduled', `Your appointment ${apt.tokenNumber} is rescheduled to ${newDate} at ${newSlot}.`, 'Appointment');
+    const apt = appointments.find(a => a.id === aptId || a.tokenNumber === aptId);
+    if (!apt) return;
+
+    // Compute fee as per bank policy
+    const fee = computeRescheduleCharge(apt.date, apt.timeSlot, 0);
+    if (fee.totalCharge > 0) {
+      const txnRef = `TXN-SV-${Date.now().toString().slice(-8)}`;
+      const newPay: PaymentRecord = {
+        id: `pay-${Date.now()}`,
+        transactionRef: txnRef,
+        lockerId: apt.lockerId,
+        lockerNumber: apt.lockerNumber,
+        period: 'Ad-hoc Operational Fee',
+        amount: fee.baseCharge,
+        taxGst: fee.gstAmount,
+        totalAmount: fee.totalCharge,
+        paymentDate: new Date().toISOString().split('T')[0],
+        paymentMethod: 'Auto-Debit (CBS)',
+        status: 'Success',
+        receiptNumber: `RCP-FEE-${Date.now().toString().slice(-6)}`
+      };
+      setPayments(prev => [newPay, ...prev]);
+      addAudit('Rahul Sharma', 'Customer', 'Reschedule Charge Debited', 'Billing', txnRef, apt.branchName, `Debited ₹${fee.totalCharge} (${fee.slabLabel}) from linked account.`);
     }
+
+    // Generate new queue token for the rescheduled slot
+    const newQueue = generateQueueToken(apt.branchName, newDate);
+    setAppointments(prev =>
+      prev.map(a =>
+        a.id === apt.id
+          ? {
+              ...a,
+              tokenNumber: newQueue.token,
+              date: newDate,
+              timeSlot: newSlot,
+              status: 'Rescheduled'
+            }
+          : a
+      )
+    );
+
+    addAudit('Rahul Sharma', 'Customer', 'Appointment Rescheduled', 'Appointment', newQueue.token, apt.branchName, `Rescheduled from ${apt.tokenNumber} to ${newQueue.token} on ${newDate} (${newSlot}).`);
+    addNotification('Appointment Rescheduled', `Appointment rescheduled to ${newDate} at ${newSlot}. New Queue Token: ${newQueue.token}.`, 'Appointment');
   };
 
   const payLockerRent = (lockerId: string, method: PaymentRecord['paymentMethod']) => {
@@ -787,7 +883,7 @@ export const BankingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const renewAgreement = (lockerId: string) => {
     const target = lockers.find(l => l.id === lockerId);
-    const docRef = `ANB/LKR-AGR/RENEW/${Date.now().toString().slice(-4)}`;
+    const docRef = `SV/LKR-AGR/RENEW/${Date.now().toString().slice(-4)}`;
     const doc: StoredDocument = {
       id: `doc-${Date.now()}`,
       title: `Executed Stamped Model Locker Agreement - Locker ${target?.lockerNumber}`,
@@ -1868,6 +1964,7 @@ export const BankingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         reauthenticateSession,
         applyForLocker,
         joinWaitingList,
+        leaveWaitingList,
         bookAppointment,
         cancelAppointment,
         rescheduleAppointment,

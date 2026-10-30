@@ -574,48 +574,62 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </p>
             </div>
 
-            {/* Quick Demo Persona Switcher (Explicitly Labeled "Demo Only") */}
-            <div className="p-3.5 bg-[#F5F7FA] rounded-2xl border border-[#E3E8F0] space-y-2.5">
+            {/* Customer Authentication Mode (Explicitly Labeled "Demo Mode") */}
+            <div className="p-3.5 bg-[#F5F7FA] rounded-2xl border border-[#E3E8F0] space-y-3">
               <div className="flex items-center justify-between text-[11px]">
                 <div className="flex items-center gap-1.5 font-bold text-[#102544]">
-                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 text-[9px] font-mono font-bold">
-                    DEMO ONLY
+                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-mono font-bold uppercase">
+                    DEMO MODE
                   </span>
-                  <span>Select Test Persona to Auto-Fill:</span>
+                  <span>Customer Self-Service Login</span>
                 </div>
-                <span className="text-[10px] font-mono font-semibold text-[#2457A7] truncate max-w-[130px]">
-                  {selectedPersona.name}
+                <span className="text-[10px] font-mono font-bold text-[#008C88] bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                  HNI WEALTH
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                {DEMO_PERSONAS.map(p => {
-                  const isSelected = selectedPersona.role === p.role;
-                  return (
-                    <button
-                      key={p.role}
-                      type="button"
-                      onClick={() => handleSelectPersona(p)}
-                      className={`p-2 rounded-xl text-left border transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#102544] text-white border-[#102544] shadow-xs'
-                          : 'bg-white text-[#17263C] border-[#E3E8F0] hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="text-[11px] font-bold leading-tight truncate">
-                        {p.label}
-                      </div>
-                      <div className="text-[9px] opacity-75 font-mono truncate">
-                        {p.badge}
-                      </div>
-                    </button>
-                  );
-                })}
+              <div className="p-3 bg-white rounded-xl border border-[#E3E8F0] flex items-center justify-between shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#102544] text-white flex items-center justify-center font-bold text-xs">
+                    RS
+                  </div>
+                  <div>
+                    <span className="font-bold text-xs text-[#102544] block">Rahul Sharma</span>
+                    <span className="font-mono text-[10px] text-[#66758C]">CIF: 9028192831 · Premier Hirer</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsername('CIF-9028192831');
+                    setPassword('Pass@2026');
+                    setErrorMessage('');
+                  }}
+                  className="text-[10px] font-bold text-[#2457A7] hover:underline"
+                >
+                  Auto-Fill
+                </button>
               </div>
 
-              <div className="text-[10px] text-[#66758C] pt-1 border-t border-[#E3E8F0]/80">
-                Destination Dashboard: <strong className="text-[#102544]">{selectedPersona.landingDesc}</strong>
-              </div>
+              {/* Fast Biometric Sign-In Button (Simulated Touch ID / Face ID) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSubmitting(true);
+                  setTimeout(() => {
+                    setIsSubmitting(false);
+                    setAuthStep('success');
+                    setTimeout(() => {
+                      onLoginSuccess('customer');
+                    }, 800);
+                  }, 500);
+                }}
+                className="w-full py-2 px-3 bg-gradient-to-r from-[#102544] to-[#2457A7] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs hover:brightness-110 active:scale-98 transition-all"
+              >
+                <Fingerprint className="w-4 h-4 text-emerald-400" />
+                <span>One-Tap Biometric Login (Face ID / Fingerprint)</span>
+              </button>
             </div>
 
             {/* Error Message Display */}
