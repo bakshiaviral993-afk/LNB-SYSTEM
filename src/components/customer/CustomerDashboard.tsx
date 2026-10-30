@@ -1,14 +1,27 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useBanking } from '../../context/BankingContext';
-import { StatusBadge } from '../common/StatusBadge';
 import { OtpModal } from '../common/OtpModal';
 import { Appointment, LockerItem } from '../../types';
 import { useScrollLock } from '../../hooks/useScrollLock';
-import { COMPLIANCE_CONFIG } from '../../config/compliance.config';
+import { formatIndianCurrency, maskAccountNumber } from '../../utils/formatters';
+import { Overline } from '../common/Overline';
+import { StatusPill } from '../common/StatusPill';
+import { SectionHeader } from '../common/SectionHeader';
+import { AvailableBalanceCard } from './AvailableBalanceCard';
+
+// Recharts components
 import {
-  computeRescheduleCharge,
-  computeCancellationCharge
-} from '../../config/policy';
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip
+} from 'recharts';
+
 import {
   Key,
   Calendar,
@@ -18,7 +31,8 @@ import {
   ShieldCheck,
   Sparkles,
   ChevronRight,
-  ChevronLeft,
+  ChevronDown,
+  ChevronUp,
   QrCode,
   AlertCircle,
   CheckCircle2,
@@ -27,25 +41,18 @@ import {
   Users,
   MapPin,
   ArrowRight,
-  LayoutGrid,
-  FileCheck2,
   X,
   FileText,
-  BadgeCheck,
   Building,
-  AlertTriangle,
-  HeartHandshake,
-  Headphones,
   Copy,
   ExternalLink,
-  Wallet,
-  RefreshCw,
-  TrendingUp,
-  ShieldAlert,
-  HelpCircle,
+  Bot,
   Send,
-  MessageSquare,
-  Bot
+  MoreVertical,
+  Grid,
+  ShieldAlert,
+  Check,
+  HeartHandshake
 } from 'lucide-react';
 
 interface CustomerDashboardProps {
@@ -70,14 +77,15 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     selectedLockerId,
     setSelectedLockerId,
     restrictLockerAccess,
-    unrestrictLockerAccess,
-    logAccessDispute
+    unrestrictLockerAccess
   } = useBanking();
 
   // Strict Customer Isolation: Rahul Sharma
-  const customerLockers = lockers.filter(
-    l => l.customerId === 'cust-rahul-01' || l.customerName === 'Rahul Sharma'
-  );
+  const customerLockers = useMemo(() => {
+    return lockers.filter(
+      l => l.customerId === 'cust-rahul-01' || l.customerName === 'Rahul Sharma'
+    );
+  }, [lockers]);
 
   // Active locker index for mobile carousel/swiper
   const [activeLockerIndex, setActiveLockerIndex] = useState(0);
@@ -90,162 +98,124 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     }
   }, [activeLocker, selectedLockerId, setSelectedLockerId]);
 
-  // Locker Details Bottom Sheet Modal
-  const [detailLocker, setDetailLocker] = useState<LockerItem | null>(null);
-  useScrollLock(Boolean(detailLocker));
+  // Main 3-Tab Segmented Control State: Overview | Insights | Activity
+  const [activeTab, setActiveTab] = useState<'overview' | 'insights' | 'activity'>('overview');
 
-  // Security Freeze / Unfreeze state
-  const [targetLockLockerId, setTargetLockLockerId] = useState<string | null>(null);
+  // Bottom sheets & Modal states
+  const [isHealthSheetOpen, setIsHealthSheetOpen] = useState(false);
+  const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
+  const [isMoreSheetOpen, setIsMoreSheetOpen] = useState(false);
+  const [isBalanceSheetOpen, setIsBalanceSheetOpen] = useState(false);
+  const [detailLocker, setDetailLocker] = useState<LockerItem | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  // Security Freeze OTP state
   const [isOtpOpen, setIsOtpOpen] = useState(false);
   const [otpAction, setOtpAction] = useState<'freeze' | 'unfreeze'>('freeze');
 
-  // Copied token toast
+  // Copied token indicator
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
-  const [walletToast, setWalletToast] = useState(false);
 
-  // Reschedule Bottom Sheet State
-  const [rescheduleSheetApt, setRescheduleSheetApt] = useState<Appointment | null>(null);
+  // Scroll direction for floating "Ask SafeVault" button
+  const [showChatButton, setShowChatButton] = useState(true);
+  const lastScrollY = useRef(0);
 
-  // Live "Now serving" ticker in demo mode
-  const [nowServingNumber, setNowServingNumber] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('sv_demo_now_serving');
-      return saved ? parseInt(saved, 10) : 9;
-    } catch {
-      return 9;
-    }
-  });
+  // Accordion state in Insights tab
+  const [isHealthAccordionOpen, setIsHealthAccordionOpen] = useState(false);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNowServingNumber(prev => {
-        const next = prev >= 35 ? 7 : prev + 1;
-        try {
-          localStorage.setItem('sv_demo_now_serving', String(next));
-        } catch {
-          // ignore
-        }
-        return next;
-      });
-    }, 20000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Ask SafeVault Floating Assistant Drawer
-  const [isAskOpen, setIsAskOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Array<{ sender: 'user' | 'bot'; text: string; time: string }>>([
-    {
-      sender: 'bot',
-      text: 'Hello Rahul! I am your SafeVault AI Assistant. Ask me about your annual rent due date, adding a nominee, lost key procedures, or strongroom charges.',
-      time: 'Just now'
-    }
-  ]);
-  const [chatInput, setChatInput] = useState('');
-
-  // Activity filter state
+  // Activity filter state & pagination
   const [activityFilter, setActivityFilter] = useState<'All' | 'Access' | 'Payments' | 'Requests'>('All');
+  const [activityPageSize, setActivityPageSize] = useState(5);
 
-  // Customer specific appointments
-  const customerAppointments = appointments.filter(
-    a => a.customerId === 'cust-rahul-01' || customerLockers.some(l => l.id === a.lockerId)
+  // Lock scroll for modal sheets
+  useScrollLock(
+    isHealthSheetOpen ||
+    isKebabMenuOpen ||
+    isMoreSheetOpen ||
+    isBalanceSheetOpen ||
+    Boolean(detailLocker) ||
+    isChatOpen
   );
 
-  // FILTER ONLY FUTURE APPOINTMENTS (Fixes stale past bookings like 28 Oct)
-  const futureAppointments = useMemo(() => {
-    const now = new Date();
-    // Beginning of today in local date
-    const todayStr = now.toISOString().split('T')[0];
-
-    return customerAppointments.filter(apt => {
-      if (apt.status === 'Cancelled') return false;
-      // If date is today or future
-      if (apt.date > todayStr) return true;
-      if (apt.date === todayStr) {
-        // Compare slot time
-        try {
-          const startTimePart = apt.timeSlot.split('-')[0].trim();
-          let [time, modifier] = startTimePart.split(' ');
-          let [hours, minutes] = time.split(':').map(Number);
-          if (modifier === 'PM' && hours < 12) hours += 12;
-          if (modifier === 'AM' && hours === 12) hours = 0;
-          const slotTime = new Date();
-          slotTime.setHours(hours, minutes || 0, 0, 0);
-          return slotTime.getTime() > now.getTime();
-        } catch {
-          return true;
-        }
+  // Floating button scroll direction listener
+  useEffect(() => {
+    const handleScroll = (currentY: number) => {
+      if (currentY > lastScrollY.current + 8 && currentY > 60) {
+        setShowChatButton(false);
+      } else if (currentY < lastScrollY.current - 8) {
+        setShowChatButton(true);
       }
-      return false;
-    });
-  }, [customerAppointments]);
-
-  const nextAppointment = futureAppointments[0];
-
-  // Helper to format date display & compute relative chip
-  const formatAppointmentTime = (dateStr: string, timeSlot: string) => {
-    const today = new Date();
-    const aptDate = new Date(dateStr);
-    
-    // Day difference
-    const diffTime = aptDate.setHours(0,0,0,0) - today.setHours(0,0,0,0);
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-    let relativeChip = 'Upcoming';
-    if (diffDays === 0) relativeChip = 'Today';
-    else if (diffDays === 1) relativeChip = 'Tomorrow';
-    else if (diffDays > 1) relativeChip = `In ${diffDays} days`;
-
-    // Format: "Fri, 30 Oct - 11:00-11:30 AM"
-    const dateFormatted = new Date(dateStr).toLocaleDateString('en-GB', {
-      weekday: 'short',
-      day: '2-digit',
-      month: 'short'
-    });
-
-    return {
-      formatted: `${dateFormatted} · ${timeSlot}`,
-      relativeChip
+      lastScrollY.current = currentY;
     };
-  };
 
-  const handleToggleFreeze = (lockerId: string, currentStatus: string) => {
-    setTargetLockLockerId(lockerId);
-    setOtpAction(currentStatus === 'Blocked' ? 'unfreeze' : 'freeze');
-    setIsOtpOpen(true);
-  };
+    const onWindowScroll = () => {
+      const y = window.scrollY || document.documentElement.scrollTop;
+      handleScroll(y);
+    };
 
-  const handleOtpSuccess = () => {
-    if (!targetLockLockerId) return;
-    if (otpAction === 'freeze') {
-      restrictLockerAccess(targetLockLockerId, 'Customer-initiated temporary security freeze via mobile app (subject to bank approval)');
-    } else {
-      unrestrictLockerAccess(targetLockLockerId);
+    const mainElem = document.querySelector('main');
+    const onMainScroll = () => {
+      if (mainElem) handleScroll(mainElem.scrollTop);
+    };
+
+    window.addEventListener('scroll', onWindowScroll, { passive: true });
+    if (mainElem) {
+      mainElem.addEventListener('scroll', onMainScroll, { passive: true });
     }
-    setTargetLockLockerId(null);
-  };
 
-  const handleViewPass = (apt: Appointment) => {
-    if (onOpenPass) {
-      onOpenPass(apt);
-    } else {
-      setCustomerView('pass');
-    }
-  };
+    return () => {
+      window.removeEventListener('scroll', onWindowScroll);
+      if (mainElem) mainElem.removeEventListener('scroll', onMainScroll);
+    };
+  }, []);
 
-  const copyTokenNumber = (token: string) => {
-    navigator.clipboard.writeText(token);
-    setCopiedToken(token);
-    setTimeout(() => setCopiedToken(null), 2500);
-  };
+  // Time-based greeting: "Good morning, Rahul" / "Good afternoon, Rahul" / "Good evening, Rahul"
+  const greetingText = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning, Rahul';
+    if (hour < 17) return 'Good afternoon, Rahul';
+    return 'Good evening, Rahul';
+  }, []);
 
-  // MODULE 1: ACTION REQUIRED ITEMS
+  // Filter ONLY FUTURE appointments for Upcoming Visit
+  const upcomingAppointment = useMemo(() => {
+    const now = new Date();
+    return appointments
+      .filter(apt => {
+        if (apt.status === 'Cancelled' || apt.status === 'Completed') return false;
+        const aptDate = new Date(`${apt.date}T23:59:59`);
+        return aptDate >= now;
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+  }, [appointments]);
+
+  // Health checklist score
+  const healthChecklist = useMemo(() => {
+    const rentPaid = (activeLocker?.outstandingRent || 0) === 0;
+    const agreementRenewed = true;
+    const kycValid = true;
+    const hasNominee = (nominees[activeLocker?.id || ''] || []).length > 0;
+    const autoDebitActive = true;
+
+    const items = [
+      { id: 'h1', label: 'Annual Rent Settled (FY 2026-27)', ok: rentPaid, weight: 25, fixView: 'rent' },
+      { id: 'h2', label: 'Model Agreement Stamped & Executed', ok: agreementRenewed, weight: 20, fixView: 'agreements' },
+      { id: 'h3', label: 'Periodic KYC Re-validation Current', ok: kycValid, weight: 20, fixView: 'agreements' },
+      { id: 'h4', label: 'Nomination Registered (Form SL-1)', ok: hasNominee, weight: 20, fixView: 'holders' },
+      { id: 'h5', label: 'CBS Auto-Debit Mandate Configured', ok: autoDebitActive, weight: 15, fixView: 'rent' },
+    ];
+
+    const score = items.reduce((acc, curr) => acc + (curr.ok ? curr.weight : 0), 0);
+    return { items, score };
+  }, [activeLocker, nominees]);
+
+  // Needs Attention (max 3 items, horizontal snap cards, ~280x88 each)
   const actionItems = useMemo(() => {
     const items: Array<{
       id: string;
       title: string;
-      reason: string;
-      dueDate: string;
-      buttonText: string;
+      detail: string;
+      ctaText: string;
       action: () => void;
       urgency: 'high' | 'medium' | 'info';
     }> = [];
@@ -256,9 +226,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       items.push({
         id: 'act-rent',
         title: 'Rent Payment Due',
-        reason: `₹${(overdueLocker.outstandingRent || 0).toLocaleString('en-IN')} pending for Locker #${overdueLocker.lockerNumber}`,
-        dueDate: 'Due 15 Nov 2026',
-        buttonText: 'Pay Now',
+        detail: `${formatIndianCurrency(overdueLocker.outstandingRent || 0)} due for Locker #${overdueLocker.lockerNumber}`,
+        ctaText: 'Pay Now',
         action: () => setCustomerView('rent'),
         urgency: 'high'
       });
@@ -269,50 +238,60 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     if (activeNominees.length === 0) {
       items.push({
         id: 'act-nominee',
-        title: 'Statutory Nomination Pending',
-        reason: 'Register nominee under Form SL-1 to avoid legal succession delays',
-        dueDate: 'Mandatory per RBI',
-        buttonText: 'Add Nominee',
+        title: 'Nomination Pending',
+        detail: 'Register nominee under Form SL-1 per RBI mandate',
+        ctaText: 'Add Nominee',
         action: () => setCustomerView('holders'),
         urgency: 'medium'
       });
     }
 
-    // Periodic KYC refresh advisory
+    // Periodic KYC refresh
     items.push({
       id: 'act-kyc',
-      title: 'Periodic KYC Re-validation',
-      reason: 'Low-risk 10-year refresh scheduled. Upload Aadhaar/PAN e-consent.',
-      dueDate: 'Due 31 Dec 2026',
-      buttonText: 'Verify KYC',
+      title: 'Periodic KYC Refresh',
+      detail: 'Scheduled re-validation due by 31 Dec 2026',
+      ctaText: 'Verify KYC',
       action: () => setCustomerView('agreements'),
       urgency: 'info'
     });
 
-    return items;
+    return items.slice(0, 3);
   }, [customerLockers, nominees, activeLocker, setCustomerView]);
 
-  // MODULE 2: LOCKER HEALTH SCORE CALCULATION
-  const healthChecklist = useMemo(() => {
-    const rentPaid = (activeLocker?.outstandingRent || 0) === 0;
-    const agreementRenewed = true; // Stamped model agreement active
-    const kycValid = true;
-    const hasNominee = (nominees[activeLocker?.id || ''] || []).length > 0;
-    const autoDebitActive = true;
+  // Copy to clipboard helper
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedToken(text);
+    setTimeout(() => setCopiedToken(null), 2000);
+  };
 
-    const items = [
-      { id: 'h1', label: 'Annual Rent Settled', ok: rentPaid, weight: 25, fixView: 'rent' },
-      { id: 'h2', label: 'Model Agreement Stamped', ok: agreementRenewed, weight: 20, fixView: 'agreements' },
-      { id: 'h3', label: 'Periodic KYC Current', ok: kycValid, weight: 20, fixView: 'agreements' },
-      { id: 'h4', label: 'Nomination Registered (SL-1)', ok: hasNominee, weight: 20, fixView: 'holders' },
-      { id: 'h5', label: 'CBS Auto-Debit Mandate Active', ok: autoDebitActive, weight: 15, fixView: 'rent' },
-    ];
+  // Toggle security freeze
+  const handleToggleFreeze = () => {
+    setIsKebabMenuOpen(false);
+    setOtpAction(activeLocker?.status === 'Blocked' ? 'unfreeze' : 'freeze');
+    setIsOtpOpen(true);
+  };
 
-    const score = items.reduce((acc, curr) => acc + (curr.ok ? curr.weight : 0), 0);
-    return { items, score };
-  }, [activeLocker, nominees]);
+  const handleOtpSuccess = () => {
+    if (!activeLocker) return;
+    if (otpAction === 'freeze') {
+      restrictLockerAccess(activeLocker.id, 'Customer initiated security freeze');
+    } else {
+      unrestrictLockerAccess(activeLocker.id);
+    }
+  };
 
   // Chat message submission
+  const [chatMessages, setChatMessages] = useState<Array<{ sender: 'user' | 'bot'; text: string; time: string }>>([
+    {
+      sender: 'bot',
+      text: 'Namaste Rahul! I am your SafeVault Vault Assistant. How can I help you with your safe deposit locker today?',
+      time: '10:00 AM'
+    }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+
   const handleSendChat = (textToSend?: string) => {
     const query = textToSend || chatInput;
     if (!query.trim()) return;
@@ -321,56 +300,91 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     setChatMessages(prev => [...prev, userMsg]);
     setChatInput('');
 
-    // Generate intelligent assistant response
     setTimeout(() => {
-      let reply = "I'm here to assist with your SafeVault account. You can explore our Locker Discovery, Visit Scheduler, or Tariff Settlement modules.";
-      const q = query.toLowerCase();
-
-      if (q.includes('rent') || q.includes('due') || q.includes('payment')) {
-        reply = `Your annual rent for Locker #${activeLocker?.lockerNumber} is ₹${activeLocker?.annualRent.toLocaleString('en-IN')} + 18% GST (₹${Math.round((activeLocker?.annualRent || 0) * 1.18).toLocaleString('en-IN')} total). Payment is debited automatically 7 days prior to renewal via CBS auto-debit.`;
-      } else if (q.includes('nominee') || q.includes('nominate') || q.includes('da-1') || q.includes('sl-1')) {
-        reply = `Under bank compliance regulations, nomination for Safe Deposit Lockers is registered using statutory Form SL-1 (or SL-1A for minors). You can register up to 4 nominees with share percentages totaling 100%.`;
-      } else if (q.includes('lost key') || q.includes('break open') || q.includes('key')) {
-        reply = `If your physical key is lost, immediately raise a 'Lost Key & Break-Open' service request. Under dual-custody rules, a technician will break open the lock strictly in your presence and issue a replacement lock with fresh keys.`;
-      } else if (q.includes('charge') || q.includes('cancel') || q.includes('reschedule') || q.includes('fee')) {
-        reply = `As per SafeVault policy: Visit cancellations >24 hours in advance are FREE. 4–24 hours incur ₹100 + 18% GST. Under 4 hours incur ₹250 + 18% GST. Rescheduling is complimentary for your first advance reschedule!`;
+      let botReply = 'I have noted your request. Branch operations team has been notified.';
+      const lower = query.toLowerCase();
+      if (lower.includes('timing') || lower.includes('hour') || lower.includes('time')) {
+        botReply = 'Connaught Place Main Branch vault is open Mon-Fri from 10:00 AM to 5:30 PM. 1st & 3rd Saturdays: 10:00 AM to 2:00 PM. Best visitation slot is 10:30 AM.';
+      } else if (lower.includes('nominee') || lower.includes('sl-1')) {
+        botReply = 'You can register up to 4 nominees under statutory Form SL-1 or SL-1A (for minors) in the Holders & Nominees section with Aadhaar step-up.';
+      } else if (lower.includes('key') || lower.includes('lost')) {
+        botReply = 'The bank does not hold duplicate keys. In case of lost keys, raise a Lost Key & Break-Open ticket in Service Requests. Authorized Godrej locksmith fee is ₹4,500 + GST.';
+      } else if (lower.includes('rent') || lower.includes('tax') || lower.includes('gst')) {
+        botReply = 'Your annual rent for Locker #A-125 is ₹4,500 + 18% GST (₹810) = ₹5,310 due on 15 Jan 2027.';
+      } else if (lower.includes('liability') || lower.includes('insurance')) {
+        botReply = 'Under RBI circular, SafeVault statutory liability is capped at 100x annual rent (₹4,50,000). The bank does not inspect or insure contents.';
       }
 
-      setChatMessages(prev => [...prev, { sender: 'bot', text: reply, time: 'Now' }]);
-    }, 400);
+      setChatMessages(prev => [
+        ...prev,
+        { sender: 'bot' as const, text: botReply, time: 'Now' }
+      ]);
+    }, 500);
   };
 
-  // Recent activity logs
-  const filteredActivity = useMemo(() => {
-    const list: Array<{
+  // Yearly Cost Donut Data
+  const yearlyCostData = [
+    { name: 'Base Annual Rent', value: 4500, color: '#97144D' },
+    { name: 'GST (18%)', value: 810, color: '#C9A24B' },
+    { name: 'Maintenance & Security', value: 0, color: '#008C88' },
+    { name: 'Penalties / Late Fees', value: 0, color: '#E895B8' },
+  ];
+
+  // Monthly Visits Frequency Bar Chart Data
+  const visitsBarData = [
+    { month: 'Jul', visits: 1, isCurrent: false },
+    { month: 'Aug', visits: 2, isCurrent: false },
+    { month: 'Sep', visits: 1, isCurrent: false },
+    { month: 'Oct', visits: 3, isCurrent: true },
+  ];
+
+  // Busy hours heat strip data
+  const busyHoursData = [
+    { hour: '9 AM', level: 'Low', occupancy: 20, color: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' },
+    { hour: '10 AM', level: 'Best', occupancy: 35, isBest: true, color: 'bg-emerald-500/30 text-emerald-800 dark:text-emerald-200 ring-2 ring-[#C9A24B]' },
+    { hour: '11 AM', level: 'Busy', occupancy: 85, color: 'bg-[#97144D]/25 text-[#97144D] dark:text-[#FFDF85]' },
+    { hour: '12 PM', level: 'Peak', occupancy: 95, color: 'bg-[#97144D]/40 text-[#97144D] dark:text-[#FFDF85]' },
+    { hour: '1 PM', level: 'Moderate', occupancy: 50, color: 'bg-amber-500/20 text-amber-800 dark:text-amber-200' },
+    { hour: '2 PM', level: 'Low', occupancy: 25, color: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' },
+    { hour: '3 PM', level: 'Moderate', occupancy: 60, color: 'bg-amber-500/20 text-amber-800 dark:text-amber-200' },
+    { hour: '4 PM', level: 'Busy', occupancy: 80, color: 'bg-[#97144D]/25 text-[#97144D] dark:text-[#FFDF85]' },
+    { hour: '5 PM', level: 'Low', occupancy: 30, color: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' },
+  ];
+
+  // Activity items grouped by date ("Today", "Yesterday", "Earlier")
+  const groupedActivity = useMemo(() => {
+    const rawItems: Array<{
       id: string;
       title: string;
       subtitle: string;
-      date: string;
+      dateGroup: 'Today' | 'Yesterday' | 'Earlier';
+      formattedDate: string;
       type: 'access' | 'payment' | 'request';
       status?: string;
     }> = [];
 
     if (activityFilter === 'All' || activityFilter === 'Access') {
-      accessLogs.forEach(al => {
-        list.push({
-          id: `act-acc-${al.id}`,
-          title: `Vault Entry · Locker #${al.lockerNumber}`,
-          subtitle: `Operated by ${al.operatedBy} (${al.verificationMethod})`,
-          date: `${al.date} · ${al.inTime}`,
+      accessLogs.forEach((log, idx) => {
+        rawItems.push({
+          id: `acc-${log.id}`,
+          title: `Vault Entry · Safe #${log.lockerNumber}`,
+          subtitle: `${log.operatedBy} · Turnstile Key Verified`,
+          dateGroup: idx === 0 ? 'Today' : idx === 1 ? 'Yesterday' : 'Earlier',
+          formattedDate: `${log.date} · ${log.timeIn}`,
           type: 'access',
-          status: al.status
+          status: 'Turnstile Verified'
         });
       });
     }
 
     if (activityFilter === 'All' || activityFilter === 'Payments') {
-      payments.forEach(p => {
-        list.push({
-          id: `act-pay-${p.id}`,
-          title: `Rent Paid · ₹${p.totalAmount.toLocaleString('en-IN')}`,
-          subtitle: `Receipt #${p.receiptNumber} (${p.paymentMethod})`,
-          date: p.paymentDate,
+      payments.forEach((p, idx) => {
+        rawItems.push({
+          id: `pay-${p.id}`,
+          title: `Rent Payment · ${formatIndianCurrency(p.totalAmount)}`,
+          subtitle: `CBS Auto-Debit · Ref: ${p.transactionRef}`,
+          dateGroup: 'Earlier',
+          formattedDate: p.paymentDate,
           type: 'payment',
           status: p.status
         });
@@ -379,936 +393,1255 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
     if (activityFilter === 'All' || activityFilter === 'Requests') {
       serviceRequests.forEach(sr => {
-        list.push({
-          id: `act-sr-${sr.id}`,
-          title: `${sr.requestType} · Ticket ${sr.ticketNumber}`,
-          subtitle: `Locker #${sr.lockerNumber} (${sr.branchName})`,
-          date: sr.createdDate,
+        rawItems.push({
+          id: `sr-${sr.id}`,
+          title: `${sr.requestType} · ${sr.ticketNumber}`,
+          subtitle: `Safe #${sr.lockerNumber} · ${sr.branchName}`,
+          dateGroup: 'Earlier',
+          formattedDate: sr.createdDate,
           type: 'request',
           status: sr.status
         });
       });
     }
 
-    return list.slice(0, 6);
-  }, [accessLogs, payments, serviceRequests, activityFilter]);
+    const visibleItems = rawItems.slice(0, activityPageSize);
 
-  // Statutory Cover Calculation: 100x annual rent
-  const statutoryLiabilityCap = (activeLocker?.annualRent || 4500) * 100;
+    const groups: { [key in 'Today' | 'Yesterday' | 'Earlier']?: typeof visibleItems } = {};
+    visibleItems.forEach(item => {
+      if (!groups[item.dateGroup]) groups[item.dateGroup] = [];
+      groups[item.dateGroup]!.push(item);
+    });
+
+    return { groups, totalCount: rawItems.length, hasMore: rawItems.length > activityPageSize };
+  }, [activityFilter, accessLogs, payments, serviceRequests, activityPageSize]);
 
   return (
-    <div className="space-y-4 pb-28 text-[#1F1420] dark:text-[#F5ECF1] selection:bg-[#97144D] selection:text-white">
-
+    <div className="space-y-3.5 pb-20 text-[#1F1420] dark:text-[#F5ECF1] selection:bg-[#97144D] selection:text-white">
+      
       {/* ============================================================ */}
-      {/* HERO SECTION: PORTFOLIO SUMMARY & ACTIVE LOCKER CARD         */}
+      {/* 1. GREETING & STATUS CHIPS (NO "2 Active Lockers" pill)      */}
       {/* ============================================================ */}
-      <div className="space-y-3">
-        {/* Top User Greeting & Status Bar */}
-        <div className="flex items-center justify-between px-1">
-          <div>
-            <span className="text-xs text-[#6B5B68] dark:text-[#A898A4] block">Welcome back,</span>
-            <h1 className="text-xl font-black text-[#1F1420] dark:text-[#F5ECF1] tracking-tight">
-              Rahul Sharma
-            </h1>
-          </div>
-          <span className="px-2.5 py-1 rounded-full bg-[#97144D]/10 dark:bg-[#97144D]/25 text-[#97144D] dark:text-[#FFDF85] border border-[#97144D]/20 text-xs font-bold font-mono">
-            {customerLockers.length} Active Lockers
+      <div className="pt-0.5 px-0.5">
+        <h1 className="text-[22px] font-bold leading-[28px] text-[#1F1420] dark:text-[#F3ECF0] tracking-tight font-['Manrope']">
+          {greetingText}
+        </h1>
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#C9A24B]/15 text-[#8F6A1A] dark:text-[#FFDF85] border border-[#C9A24B]/30 tracking-tight">
+            Premier Wealth
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#1E8E5A]/15 text-[#1E8E5A] dark:text-[#4ADE80] border border-[#1E8E5A]/30 tracking-tight">
+            <Check className="w-3 h-3 stroke-[2.5]" />
+            KYC verified
           </span>
         </div>
-
-        {/* Hero Active Locker Card (Burgundy Gradient with Gold Accent) */}
-        {activeLocker && (
-          <div className="bg-gradient-to-br from-[#6B0E37] via-[#851144] to-[#97144D] text-white rounded-3xl p-5 shadow-xl relative overflow-hidden">
-            <div className="absolute right-0 top-0 bottom-0 w-32 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/10 to-transparent pointer-events-none" />
-
-            {/* Header row */}
-            <div className="flex items-start justify-between relative z-10">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-1.5">
-                  <span className="px-2 py-0.5 rounded-full bg-[#C9A24B]/30 text-[#FFDF85] border border-[#C9A24B]/40 text-[10px] font-bold uppercase tracking-wider font-mono">
-                    {activeLocker.size} Compartment
-                  </span>
-                  <span className="text-white/70 text-xs">·</span>
-                  <span className="text-[#FFDF85] text-xs font-semibold">Tier-1 Security Vault</span>
-                </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <span className="font-mono font-black text-2xl tracking-wider text-white">
-                    Locker #{activeLocker.lockerNumber}
-                  </span>
-                </div>
-                <p className="text-xs text-white/85 flex items-center gap-1 mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#FFDF85] shrink-0" />
-                  <span className="truncate">{activeLocker.branchName}</span>
-                </p>
-              </div>
-
-              {/* Status indicator button */}
-              <div className="flex flex-col items-end gap-1.5">
-                <StatusBadge status={activeLocker.status} size="sm" />
-                <button
-                  type="button"
-                  onClick={() => handleToggleFreeze(activeLocker.id, activeLocker.status)}
-                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 border transition-colors cursor-pointer active-press ${
-                    activeLocker.status === 'Blocked'
-                      ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40 hover:bg-emerald-500/30'
-                      : 'bg-white/15 text-white border-white/20 hover:bg-white/25'
-                  }`}
-                  title="Security Lock / Unlock"
-                >
-                  {activeLocker.status === 'Blocked' ? (
-                    <>
-                      <Unlock className="w-3 h-3 text-emerald-300" />
-                      <span>Unfreeze</span>
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-3 h-3 text-[#FFDF85]" />
-                      <span>Freeze</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Quick stats grid inside Hero Card */}
-            <div className="grid grid-cols-3 gap-2 pt-4 mt-3 border-t border-white/15 text-xs">
-              <div className="bg-black/20 rounded-2xl p-2.5 border border-white/10">
-                <span className="text-[10px] text-white/70 block uppercase font-mono">Annual Rent</span>
-                <span className="font-mono font-extrabold text-sm text-white block mt-0.5">
-                  ₹{activeLocker.annualRent.toLocaleString('en-IN')}
-                </span>
-              </div>
-              <div className="bg-black/20 rounded-2xl p-2.5 border border-white/10">
-                <span className="text-[10px] text-white/70 block uppercase font-mono">Deposit FD</span>
-                <span className="font-mono font-extrabold text-sm text-[#FFDF85] block mt-0.5">
-                  ₹{activeLocker.securityDeposit.toLocaleString('en-IN')}
-                </span>
-              </div>
-              <div className="bg-black/20 rounded-2xl p-2.5 border border-white/10">
-                <span className="text-[10px] text-white/70 block uppercase font-mono">Renewal Due</span>
-                <span className="font-mono font-bold text-xs text-white block mt-0.5">
-                  {activeLocker.rentDueDate || '31 Dec 2026'}
-                </span>
-              </div>
-            </div>
-
-            {/* Multi-locker carousel pagination */}
-            {customerLockers.length > 1 && (
-              <div className="flex items-center justify-between pt-3 mt-1">
-                <span className="text-[11px] text-white/70">
-                  Viewing {activeLockerIndex + 1} of {customerLockers.length} compartments
-                </span>
-                <div className="flex items-center gap-1.5">
-                  {customerLockers.map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setActiveLockerIndex(idx)}
-                      aria-label={`Switch to locker ${idx + 1}`}
-                      className={`h-2 rounded-full transition-all cursor-pointer ${
-                        activeLockerIndex === idx ? 'w-6 bg-[#FFDF85]' : 'w-2 bg-white/40'
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* ============================================================ */}
-      {/* 1. ACTION REQUIRED MODULE (Horizontal swipe cards)           */}
+      {/* 2. STICKY SEGMENTED CONTROL (36px): Overview|Insights|Activity */}
       {/* ============================================================ */}
-      {actionItems.length > 0 && (
-        <div className="space-y-2 pt-1">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-sm font-extrabold text-[#1F1420] dark:text-[#F5ECF1] tracking-tight flex items-center gap-1.5">
-              <AlertTriangle className="w-4 h-4 text-[#C9A24B]" />
-              <span>Action Required ({actionItems.length})</span>
-            </h2>
+      <div className="sticky top-[56px] z-20 bg-[#FAF6F8]/95 dark:bg-[#1A0C18]/95 backdrop-blur-md py-1 -mx-3.5 sm:-mx-4 px-3.5 sm:px-4 border-b border-[#E8DFE5]/60 dark:border-white/5">
+        <div className="h-[36px] bg-black/5 dark:bg-white/10 p-0.5 rounded-xl flex items-center justify-between text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`flex-1 h-full rounded-lg transition-all flex items-center justify-center cursor-pointer active-press ${
+              activeTab === 'overview'
+                ? 'bg-white dark:bg-[#2B1626] text-[#97144D] dark:text-[#FFDF85] shadow-xs font-bold'
+                : 'text-[#6B5B68] dark:text-[#A898A4] hover:text-[#1F1420] dark:hover:text-white'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('insights')}
+            className={`flex-1 h-full rounded-lg transition-all flex items-center justify-center cursor-pointer active-press ${
+              activeTab === 'insights'
+                ? 'bg-white dark:bg-[#2B1626] text-[#97144D] dark:text-[#FFDF85] shadow-xs font-bold'
+                : 'text-[#6B5B68] dark:text-[#A898A4] hover:text-[#1F1420] dark:hover:text-white'
+            }`}
+          >
+            Insights
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('activity')}
+            className={`flex-1 h-full rounded-lg transition-all flex items-center justify-center cursor-pointer active-press ${
+              activeTab === 'activity'
+                ? 'bg-white dark:bg-[#2B1626] text-[#97144D] dark:text-[#FFDF85] shadow-xs font-bold'
+                : 'text-[#6B5B68] dark:text-[#A898A4] hover:text-[#1F1420] dark:hover:text-white'
+            }`}
+          >
+            Activity
+          </button>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* TAB 1: OVERVIEW (EXACTLY 5 BLOCKS)                          */}
+      {/* ============================================================ */}
+      {activeTab === 'overview' && (
+        <div className="space-y-3.5">
+          
+          {/* BLOCK 1: LOCKER CAROUSEL (THE ONLY GRADIENT CARD ON PAGE) */}
+          <div className="space-y-2">
+            <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-1">
+              {customerLockers.map((locker, idx) => (
+                <div
+                  key={locker.id}
+                  className="w-[90%] shrink-0 snap-center min-h-[152px] bg-gradient-to-br from-[#6B0E37] via-[#851144] to-[#97144D] text-white rounded-[20px] p-4 shadow-md relative overflow-hidden border border-[#6B0E37]/50 flex flex-col justify-between"
+                >
+                  {/* Row 1: Locker number (Manrope 22/700, NOT monospace), size chip, status pill, 44px health ring */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-['Manrope'] font-bold text-[22px] tracking-tight text-white leading-none">
+                        A-125
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[11px] font-medium border border-white/20">
+                        {locker.size}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/25 text-emerald-200 border border-emerald-400/30 text-[11px] font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        {locker.status === 'Blocked' ? 'Frozen' : 'Occupied'}
+                      </span>
+                    </div>
+
+                    {/* Small 44px Health Ring Button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsHealthSheetOpen(true)}
+                      className="w-[44px] h-[44px] relative flex items-center justify-center cursor-pointer active-press shrink-0"
+                      title="Compliance Checklist"
+                      aria-label="Locker Health Score 100"
+                    >
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                        <path
+                          className="text-white/20"
+                          strokeWidth="3.5"
+                          stroke="currentColor"
+                          fill="none"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                        <path
+                          className="text-[#FFDF85]"
+                          strokeDasharray="100, 100"
+                          strokeWidth="3.5"
+                          strokeLinecap="round"
+                          stroke="currentColor"
+                          fill="none"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                      </svg>
+                      <span className="absolute font-['Manrope'] font-bold text-[12px] text-[#FFDF85]">
+                        100
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Row 2: Branch location (14px) */}
+                  <div className="text-[14px] font-medium text-white/90 truncate mt-1">
+                    {locker.branchName || 'Main Branch, Connaught Place'}
+                  </div>
+
+                  {/* Row 3: Single line rent/renewal/mandate */}
+                  <div className="text-[12px] text-white/80 truncate no-wrap-amount tabular-nums mt-1">
+                    ₹4,500/yr + GST · Renews 15 Jan 2027 · Single mandate
+                  </div>
+
+                  {/* Row 4: Two buttons [Book Visit] primary gold + [Details] ghost + kebab button */}
+                  <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-white/15">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCustomerView('visit')}
+                        className="bg-[#C9A24B] hover:bg-[#B89139] text-[#1F1420] font-semibold text-xs px-3.5 py-1.5 rounded-xl shadow-xs active-press cursor-pointer transition-colors"
+                      >
+                        Book Visit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDetailLocker(locker)}
+                        className="bg-white/15 hover:bg-white/25 text-white font-medium text-xs px-3 py-1.5 rounded-xl active-press cursor-pointer transition-colors"
+                      >
+                        Details
+                      </button>
+                    </div>
+
+                    {/* Kebab ... Button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsKebabMenuOpen(true)}
+                      className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white active-press cursor-pointer transition-colors"
+                      title="More Options"
+                      aria-label="More Options"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Carousel dots */}
+            {customerLockers.length > 1 && (
+              <div className="flex items-center justify-center gap-1.5 pt-0.5">
+                {customerLockers.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveLockerIndex(idx)}
+                    className={`transition-all rounded-full ${
+                      idx === activeLockerIndex
+                        ? 'w-5 h-1.5 bg-[#97144D]'
+                        : 'w-1.5 h-1.5 bg-[#E8DFE5] dark:bg-[#381B30]'
+                    }`}
+                    aria-label={`Go to locker card ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-3 overflow-x-auto pb-1 scrollbar-none snap-x">
-            {actionItems.map(item => (
-              <div
-                key={item.id}
-                className="min-w-[280px] max-w-[320px] snap-center bg-white dark:bg-[#221019] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] rounded-3xl p-4 shadow-sm space-y-2 shrink-0"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-xs text-[#1F1420] dark:text-[#F5ECF1] truncate max-w-[190px]">
-                    {item.title}
-                  </span>
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                    {item.dueDate}
+          {/* BLOCK 2: QUICK ACTIONS (ONE ROW OF 4 TILES + 5th "More") */}
+          <div className="grid grid-cols-5 gap-2">
+            {/* 1. Book Visit */}
+            <button
+              type="button"
+              onClick={() => setCustomerView('visit')}
+              className="h-[56px] flex flex-col items-center justify-center bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-2xl active-press cursor-pointer hover:border-[#97144D]/30 shadow-xs transition-colors p-1"
+            >
+              <Calendar className="w-4 h-4 text-[#97144D] dark:text-[#FFDF85]" />
+              <span className="text-[12px] font-medium text-[#1F1420] dark:text-[#F3ECF0] mt-1 truncate">
+                Book Visit
+              </span>
+            </button>
+
+            {/* 2. Pay Rent */}
+            <button
+              type="button"
+              onClick={() => setCustomerView('rent')}
+              className="h-[56px] flex flex-col items-center justify-center bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-2xl active-press cursor-pointer hover:border-[#97144D]/30 shadow-xs transition-colors p-1"
+            >
+              <CreditCard className="w-4 h-4 text-[#97144D] dark:text-[#FFDF85]" />
+              <span className="text-[12px] font-medium text-[#1F1420] dark:text-[#F3ECF0] mt-1 truncate">
+                Pay Rent
+              </span>
+            </button>
+
+            {/* 3. Find Locker */}
+            <button
+              type="button"
+              onClick={() => setCustomerView('find')}
+              className="h-[56px] flex flex-col items-center justify-center bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-2xl active-press cursor-pointer hover:border-[#97144D]/30 shadow-xs transition-colors p-1"
+            >
+              <Search className="w-4 h-4 text-[#97144D] dark:text-[#FFDF85]" />
+              <span className="text-[12px] font-medium text-[#1F1420] dark:text-[#F3ECF0] mt-1 truncate">
+                Find Locker
+              </span>
+            </button>
+
+            {/* 4. Nominees */}
+            <button
+              type="button"
+              onClick={() => setCustomerView('holders')}
+              className="h-[56px] flex flex-col items-center justify-center bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-2xl active-press cursor-pointer hover:border-[#97144D]/30 shadow-xs transition-colors p-1"
+            >
+              <Users className="w-4 h-4 text-[#97144D] dark:text-[#FFDF85]" />
+              <span className="text-[12px] font-medium text-[#1F1420] dark:text-[#F3ECF0] mt-1 truncate">
+                Nominees
+              </span>
+            </button>
+
+            {/* 5. More */}
+            <button
+              type="button"
+              onClick={() => setIsMoreSheetOpen(true)}
+              className="h-[56px] flex flex-col items-center justify-center bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-2xl active-press cursor-pointer hover:border-[#97144D]/30 shadow-xs transition-colors p-1"
+            >
+              <Grid className="w-4 h-4 text-[#97144D] dark:text-[#FFDF85]" />
+              <span className="text-[12px] font-medium text-[#1F1420] dark:text-[#F3ECF0] mt-1 truncate">
+                More
+              </span>
+            </button>
+          </div>
+
+          {/* BLOCK 3: NEXT VISIT CARD (COMPACT ~96px, ONLY FUTURE VISITS) */}
+          <div className="bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-[20px] p-3.5 shadow-xs">
+            {upcomingAppointment ? (
+              <div className="space-y-1.5">
+                {/* Row 1: Date & Time (14/600) */}
+                <div className="flex items-center justify-between text-[14px] font-semibold text-[#1F1420] dark:text-[#F3ECF0]">
+                  <span className="truncate">Tomorrow, Sat 31 Oct · 9:30-10:00 AM</span>
+                  <span className="text-[11px] font-mono text-[#6B5B68] dark:text-[#A898A4] shrink-0">
+                    Slot #2
                   </span>
                 </div>
-                <p className="text-xs text-[#6B5B68] dark:text-[#A898A4] line-clamp-2 leading-relaxed">
-                  {item.reason}
-                </p>
-                <div className="pt-1">
-                  <button
-                    type="button"
-                    onClick={item.action}
-                    className="w-full h-9 bg-[#97144D] hover:bg-[#6B0E37] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1 shadow-xs transition-colors active-press cursor-pointer"
-                  >
-                    <span>{item.buttonText}</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
+
+                {/* Row 2: Token chip on its own line with copy button */}
+                <div className="flex items-center gap-1.5">
+                  <div className="bg-[#97144D]/10 dark:bg-[#97144D]/25 text-[#97144D] dark:text-[#FFDF85] border border-[#97144D]/20 px-2 py-0.5 rounded-lg font-mono text-[12px] font-semibold inline-flex items-center gap-1.5">
+                    <span>{upcomingAppointment.queueToken || 'SV-CON-261031-014'}</span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(upcomingAppointment.queueToken || 'SV-CON-261031-014')}
+                      className="p-0.5 hover:bg-[#97144D]/20 rounded cursor-pointer"
+                      title="Copy token"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
+                  {copiedToken && (
+                    <span className="text-[10px] text-emerald-600 font-bold animate-in fade-in">
+                      Copied!
+                    </span>
+                  )}
+                </div>
+
+                {/* Row 3: Live countdown chip | buttons [QR Pass] and [Reschedule] */}
+                <div className="flex items-center justify-between pt-1">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                    <Clock className="w-3 h-3" />
+                    In 18h 42m
+                  </span>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setCustomerView('pass')}
+                      className="bg-[#97144D] hover:bg-[#851144] text-white text-xs font-semibold px-3 py-1.5 rounded-xl shadow-xs active-press cursor-pointer transition-colors"
+                    >
+                      QR Pass
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCustomerView('visit')}
+                      className="bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-[#1F1420] dark:text-white text-xs font-medium px-2.5 py-1.5 rounded-xl active-press cursor-pointer transition-colors"
+                    >
+                      Reschedule
+                    </button>
+                  </div>
                 </div>
               </div>
-            ))}
+            ) : (
+              <div className="flex items-center justify-between py-1">
+                <span className="text-[14px] font-medium text-[#6B5B68] dark:text-[#A898A4]">
+                  No visit scheduled
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCustomerView('visit')}
+                  className="bg-[#97144D] hover:bg-[#851144] text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl shadow-xs active-press cursor-pointer transition-colors"
+                >
+                  Book a visit
+                </button>
+              </div>
+            )}
           </div>
+
+          {/* BLOCK 4: NEEDS ATTENTION (HORIZONTAL SNAP CARDS, MAX 3, ~280x88 EACH) */}
+          {actionItems.length > 0 && (
+            <div className="space-y-2">
+              <SectionHeader title="Needs Attention" />
+              <div className="flex gap-2.5 overflow-x-auto snap-x no-scrollbar pb-0.5">
+                {actionItems.map(item => (
+                  <div
+                    key={item.id}
+                    className="snap-start w-[280px] h-[88px] shrink-0 bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-[20px] p-3 shadow-xs flex items-center justify-between gap-2.5"
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 text-[#97144D] shrink-0" />
+                        <span className="text-[14px] font-semibold text-[#1F1420] dark:text-[#F3ECF0] truncate">
+                          {item.title}
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-[#6B5B68] dark:text-[#A898A4] truncate max-w-[170px]">
+                        {item.detail}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={item.action}
+                      className="bg-[#97144D]/10 hover:bg-[#97144D] text-[#97144D] hover:text-white dark:bg-[#97144D]/25 dark:text-[#FFDF85] dark:hover:text-white text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-all shrink-0 active-press cursor-pointer"
+                    >
+                      {item.ctaText}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* BLOCK 5: RENT ACCOUNT ROW (SLIM ~72px, NEVER SHOWS BALANCE ON CARD) */}
+          <div className="bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-[20px] p-3.5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[14px] font-semibold text-[#1F1420] dark:text-[#F3ECF0]">
+                  Savings Account - xxxx 1720
+                </div>
+                <div className="text-[12px] text-[#1E8E5A] dark:text-[#4ADE80] font-medium flex items-center gap-1 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1E8E5A] dark:bg-[#4ADE80]" />
+                  Auto-debit active
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsBalanceSheetOpen(true)}
+                className="bg-[#97144D] hover:bg-[#851144] text-[#FFDF85] text-xs font-semibold px-3 py-1.5 rounded-xl shadow-xs active-press cursor-pointer transition-colors"
+              >
+                Check balance
+              </button>
+            </div>
+
+            <div className="text-[12px] text-[#1E8E5A] dark:text-[#4ADE80] font-medium flex items-center gap-1 mt-2.5 pt-2 border-t border-[#E8DFE5]/60 dark:border-white/5 truncate no-wrap-amount tabular-nums">
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <span>Enough for next rent ₹5,310 (₹4,500 + 18% GST) due 15 Jan 2027</span>
+            </div>
+          </div>
+
         </div>
       )}
 
       {/* ============================================================ */}
-      {/* 2. LOCKER HEALTH SCORE MODULE (Animated Ring + Checklist)   */}
+      {/* TAB 2: INSIGHTS (ALL FULL WIDTH, STACKED, NO SIDE-BY-SIDE)   */}
       {/* ============================================================ */}
-      <div className="bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] p-4 shadow-sm space-y-3">
-        <div className="flex items-center justify-between border-b border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] pb-2.5">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-[#1E8E5A]/10 text-[#1E8E5A] flex items-center justify-center font-bold">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-sm font-extrabold text-[#1F1420] dark:text-[#F5ECF1]">
-                Locker Health Index
-              </h2>
-              <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
-                Compliance & Security Standing
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xl font-black font-mono text-[#97144D] dark:text-[#FFDF85]">
-              {healthChecklist.score}/100
-            </span>
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="w-full h-2 rounded-full bg-[#FAF6F8] dark:bg-black/30 overflow-hidden border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
-          <div
-            className="h-full bg-gradient-to-r from-[#97144D] to-[#1E8E5A] rounded-full transition-all duration-500"
-            style={{ width: `${healthChecklist.score}%` }}
-          />
-        </div>
-
-        {/* Checklist */}
-        <div className="space-y-2 pt-1 text-xs">
-          {healthChecklist.items.map(item => (
-            <div
-              key={item.id}
-              onClick={() => setCustomerView(item.fixView)}
-              className="flex items-center justify-between p-2 rounded-xl bg-[#FAF6F8] dark:bg-[#2E1624] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] hover:border-[#97144D] cursor-pointer transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                {item.ok ? (
-                  <CheckCircle2 className="w-4 h-4 text-[#1E8E5A] shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-[#C62828] shrink-0" />
-                )}
-                <span className={`font-semibold ${item.ok ? 'text-[#1F1420] dark:text-white' : 'text-[#C62828] dark:text-rose-400'}`}>
-                  {item.label}
-                </span>
-              </div>
-              <span className="text-[10px] font-bold text-[#97144D] dark:text-[#FFDF85] flex items-center gap-0.5">
-                {item.ok ? 'Verified' : 'Fix Now'}
-                <ChevronRight className="w-3 h-3" />
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ============================================================ */}
-      {/* 3. QUICK SERVICES: 4x2 ICON GRID                            */}
-      {/* ============================================================ */}
-      <div className="space-y-2">
-        <h2 className="text-sm font-extrabold text-[#1F1420] dark:text-[#F5ECF1] px-1">
-          Quick Services
-        </h2>
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { id: 'qs-book', label: 'Book Visit', icon: Calendar, view: 'visit', badge: null, color: 'text-[#97144D] bg-[#97144D]/10' },
-            { id: 'qs-rent', label: 'Pay Rent', icon: CreditCard, view: 'rent', badge: activeLocker?.outstandingRent ? 'Due' : null, color: 'text-amber-600 bg-amber-500/10' },
-            { id: 'qs-find', label: 'Find Locker', icon: Search, view: 'find', badge: null, color: 'text-emerald-600 bg-emerald-500/10' },
-            { id: 'qs-wait', label: 'Waitlist', icon: Clock, view: 'waitlist', badge: null, color: 'text-[#C9A24B] bg-[#C9A24B]/15' },
-            { id: 'qs-agr', label: 'Agreements', icon: FileCheck2, view: 'agreements', badge: null, color: 'text-indigo-600 bg-indigo-500/10' },
-            { id: 'qs-nom', label: 'Nominees', icon: Users, view: 'holders', badge: null, color: 'text-sky-600 bg-sky-500/10' },
-            { id: 'qs-req', label: 'Requests', icon: FileText, view: 'requests', badge: serviceRequests.length > 0 ? String(serviceRequests.length) : null, color: 'text-purple-600 bg-purple-500/10' },
-            { id: 'qs-sup', label: 'Support', icon: Headphones, view: 'support', badge: null, color: 'text-teal-600 bg-teal-500/10' },
-          ].map(s => {
-            const Icon = s.icon;
-            return (
-              <button
-                key={s.id}
-                onClick={() => setCustomerView(s.view)}
-                className="p-2.5 bg-white dark:bg-[#221019] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] hover:border-[#97144D] rounded-2xl shadow-xs flex flex-col items-center justify-center text-center transition-all group min-h-[82px] active-press cursor-pointer relative"
-              >
-                {s.badge && (
-                  <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-[#C62828] text-white shadow-xs">
-                    {s.badge}
-                  </span>
-                )}
-                <div className={`w-10 h-10 rounded-xl ${s.color} flex items-center justify-center mb-1.5 transition-transform group-hover:scale-105`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <span className="text-[11px] font-bold text-[#1F1420] dark:text-[#F5ECF1] leading-tight">
-                  {s.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ============================================================ */}
-      {/* 4. UPCOMING VISIT (LIVE WITH NOW SERVING TICKER)             */}
-      {/* ============================================================ */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="text-sm font-extrabold text-[#1F1420] dark:text-[#F5ECF1] tracking-tight">
-            Upcoming Vault Visit
-          </h2>
-          <button
-            type="button"
-            onClick={() => setCustomerView('visit')}
-            className="text-xs font-bold text-[#97144D] dark:text-[#FFDF85] hover:underline flex items-center gap-0.5 cursor-pointer"
-          >
-            <span>Manage All</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {nextAppointment ? (
-          <div className="bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] p-4 shadow-sm space-y-3">
-            {/* Top row: Token on its own line & copy button */}
-            <div className="flex items-center justify-between border-b border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] pb-2.5">
-              <div>
-                <span className="text-[10px] font-mono text-[#6B5B68] dark:text-[#A898A4] uppercase block">
-                  Queue Token Number
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-black text-sm tracking-wider text-[#97144D] dark:text-[#FFDF85]">
-                    {nextAppointment.tokenNumber}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => copyTokenNumber(nextAppointment.tokenNumber)}
-                    className="p-1 rounded-lg bg-black/5 dark:bg-white/10 hover:bg-black/10 text-[#6B5B68] dark:text-[#A898A4]"
-                    title="Copy Token"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
-                  {copiedToken === nextAppointment.tokenNumber && (
-                    <span className="text-[10px] text-emerald-600 font-bold">Copied!</span>
-                  )}
-                </div>
-              </div>
-              <StatusBadge status={nextAppointment.status} size="sm" />
-            </div>
-
-            {/* Date, Time, Branch, and Live Ticker */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="bg-[#FAF6F8] dark:bg-[#2E1624] p-2.5 rounded-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4]">Schedule</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-[#97144D]/10 text-[#97144D] dark:text-[#FFDF85] text-[9px] font-extrabold uppercase">
-                    {formatAppointmentTime(nextAppointment.date, nextAppointment.timeSlot).relativeChip}
-                  </span>
-                </div>
-                <span className="font-bold text-xs text-[#1F1420] dark:text-white mt-0.5 block truncate">
-                  {formatAppointmentTime(nextAppointment.date, nextAppointment.timeSlot).formatted}
-                </span>
-              </div>
-
-              <div className="bg-[#FAF6F8] dark:bg-[#2E1624] p-2.5 rounded-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
-                <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] block">Branch Vault</span>
-                <span className="font-bold text-xs text-[#1F1420] dark:text-white mt-0.5 block truncate">
-                  {nextAppointment.branchName}
-                </span>
-              </div>
-            </div>
-
-            {/* Live Ticker & Queue Position */}
-            <div className="p-2.5 bg-gradient-to-r from-[#6B0E37]/10 to-[#97144D]/10 dark:from-[#6B0E37]/30 dark:to-[#97144D]/30 border border-[#97144D]/25 rounded-2xl flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className="font-bold text-[#1F1420] dark:text-white">
-                  Now Serving: #{String(nowServingNumber).padStart(3, '0')}
-                </span>
-              </div>
-              <span className="font-mono text-[11px] text-[#97144D] dark:text-[#FFDF85] font-extrabold">
-                Your Position: #{nextAppointment.tokenNumber.slice(-3) || '014'}
-              </span>
-            </div>
-
-            {/* 4 Action Buttons: Show QR Pass / Directions / Add to Wallet / Reschedule */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => handleViewPass(nextAppointment)}
-                className="h-11 rounded-xl bg-[#97144D] hover:bg-[#6B0E37] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs active-press cursor-pointer"
-              >
-                <QrCode className="w-4 h-4 text-[#FFDF85]" />
-                <span>Show QR Pass</span>
-              </button>
-
-              <a
-                href={`https://maps.google.com/?q=${encodeURIComponent(nextAppointment.branchName + ' SafeVault')}`}
-                target="_blank"
-                rel="noreferrer"
-                className="h-11 rounded-xl bg-[#FAF6F8] dark:bg-[#2E1624] hover:bg-slate-200 dark:hover:bg-[#381B30] text-[#1F1420] dark:text-white font-bold text-xs border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] flex items-center justify-center gap-1 transition-colors cursor-pointer"
-              >
-                <MapPin className="w-4 h-4 text-[#97144D] dark:text-[#FFDF85]" />
-                <span>Directions</span>
-              </a>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setWalletToast(true);
-                  setTimeout(() => setWalletToast(false), 3000);
-                }}
-                className="h-10 rounded-xl bg-[#FAF6F8] dark:bg-[#2E1624] hover:bg-slate-200 dark:hover:bg-[#381B30] text-[#1F1420] dark:text-white font-bold text-xs border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] flex items-center justify-center gap-1 transition-colors cursor-pointer"
-              >
-                <Wallet className="w-4 h-4 text-[#C9A24B]" />
-                <span>Add to Wallet</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setRescheduleSheetApt(nextAppointment)}
-                className="h-10 rounded-xl bg-[#97144D]/10 hover:bg-[#97144D]/20 text-[#97144D] dark:text-[#FFDF85] font-bold text-xs border border-[#97144D]/30 flex items-center justify-center gap-1 transition-colors cursor-pointer"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>Reschedule</span>
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="p-4 bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] text-center space-y-2">
-            <Calendar className="w-8 h-8 text-[#97144D]/40 mx-auto" />
-            <p className="text-xs font-medium text-[#6B5B68] dark:text-[#A898A4]">
-              No future strongroom visits scheduled.
-            </p>
-            <button
-              type="button"
-              onClick={() => setCustomerView('visit')}
-              className="px-4 py-2 bg-[#97144D] text-white rounded-xl text-xs font-bold shadow-xs active-press cursor-pointer"
-            >
-              Book a Visit
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ============================================================ */}
-      {/* 5. RENT & DEPOSIT CARD                                      */}
-      {/* ============================================================ */}
-      <div className="bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] p-4 shadow-sm space-y-3">
-        <div className="flex items-center justify-between border-b border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] pb-2.5">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
-              <CreditCard className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-sm font-extrabold text-[#1F1420] dark:text-[#F5ECF1]">
-                Rent & Deposit Summary
-              </h2>
-              <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
-                Locker #{activeLocker?.lockerNumber}
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setCustomerView('rent')}
-            className="text-xs font-bold text-[#97144D] dark:text-[#FFDF85] hover:underline"
-          >
-            Pay / View
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="bg-[#FAF6F8] dark:bg-[#2E1624] p-2.5 rounded-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
-            <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] block">Annual Tariff (+18% GST)</span>
-            <span className="font-mono font-black text-sm text-[#1F1420] dark:text-white mt-0.5 block">
-              ₹{Math.round((activeLocker?.annualRent || 4500) * 1.18).toLocaleString('en-IN')}
-            </span>
-          </div>
-
-          <div className="bg-[#FAF6F8] dark:bg-[#2E1624] p-2.5 rounded-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
-            <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] block">Security Deposit Lien</span>
-            <span className="font-mono font-black text-sm text-[#1E8E5A] mt-0.5 block">
-              ₹{(activeLocker?.securityDeposit || 13500).toLocaleString('en-IN')}
-            </span>
-          </div>
-        </div>
-
-        <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[11px] text-amber-900 dark:text-amber-200 space-y-1">
-          <div className="flex items-center gap-1 font-bold">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-            <span>Late-Fee Policy Advisory:</span>
-          </div>
-          <p className="leading-relaxed">
-            2.5% per month late fee levied on overdue rent (maximum 25% cap - demo value). Auto-debit active on account XXXX 1720.
-          </p>
-        </div>
-
-        <div className="p-2.5 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] flex items-center justify-between text-xs">
-          <span className="text-[#6B5B68] dark:text-[#A898A4]">Pro-rata refund if surrendered today:</span>
-          <span className="font-mono font-extrabold text-[#1E8E5A]">
-            ₹{Math.round((activeLocker?.annualRent || 4500) * 0.5 + (activeLocker?.securityDeposit || 13500)).toLocaleString('en-IN')}
-          </span>
-        </div>
-      </div>
-
-      {/* ============================================================ */}
-      {/* 6. SECURITY CENTRE MODULE                                    */}
-      {/* ============================================================ */}
-      <div className="bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] p-4 shadow-sm space-y-3">
-        <div className="flex items-center justify-between border-b border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] pb-2.5">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
-              <ShieldAlert className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-sm font-extrabold text-[#1F1420] dark:text-[#F5ECF1]">
-                Security Centre
-              </h2>
-              <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
-                Biometric Turnstile Guardrails
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => handleToggleFreeze(activeLocker?.id || '', activeLocker?.status || '')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold border transition-colors cursor-pointer active-press ${
-              activeLocker?.status === 'Blocked'
-                ? 'bg-emerald-500 text-white border-emerald-600'
-                : 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/40'
-            }`}
-          >
-            {activeLocker?.status === 'Blocked' ? 'Lift Freeze' : 'Emergency Freeze'}
-          </button>
-        </div>
-
-        {/* Last access details */}
-        <div className="p-3 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] space-y-1 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">Last Verified Vault Entry:</span>
-            <span className="px-2 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
-              Turnstile Passed
-            </span>
-          </div>
-          <p className="font-bold text-[#1F1420] dark:text-white">
-            18 Oct 2026 at 11:24 AM · Rahul Sharma (Biometric Fingerprint + Smartcard)
-          </p>
-          <div className="flex items-center gap-2 pt-1 text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Access alert sent by SMS & email to registered contacts.</span>
-          </div>
-        </div>
-
-        {/* Dispute button */}
-        <button
-          type="button"
-          onClick={() => {
-            logAccessDispute(
-              activeLocker?.id || 'lck-125',
-              'Unrecognized strongroom entry event flagged by customer from Mobile Security Centre'
-            );
-          }}
-          className="w-full h-10 rounded-xl bg-white dark:bg-[#2E1624] border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors active-press cursor-pointer"
-        >
-          <ShieldAlert className="w-4 h-4" />
-          <span>Not me? Report Unauthorized Entry</span>
-        </button>
-      </div>
-
-      {/* ============================================================ */}
-      {/* 7. COVER & STATUTORY LIABILITY CARD                         */}
-      {/* ============================================================ */}
-      <div className="bg-gradient-to-r from-[#14080F] to-[#2E1624] text-white rounded-3xl p-4 shadow-md border border-white/10 space-y-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-[#C9A24B]/20 text-[#FFDF85] flex items-center justify-center">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[#FFDF85] font-extrabold block">
-                STATUTORY SAFEGUARD
-              </span>
-              <h2 className="text-sm font-extrabold text-white">
-                Bank Liability Cap: ₹{statutoryLiabilityCap.toLocaleString('en-IN')}
-              </h2>
-            </div>
-          </div>
-          <span className="px-2 py-0.5 rounded-full bg-[#C9A24B]/30 text-[#FFDF85] border border-[#C9A24B]/40 text-[10px] font-bold font-mono">
-            100x Rent
-          </span>
-        </div>
-
-        <p className="text-xs text-white/80 leading-relaxed">
-          As mandated by Reserve Bank of India instructions, bank liability is statutory pegged at 100 times prevailing annual rent. The Bank does not inspect, inventory or insure locker contents.
-        </p>
-
-        <div className="pt-1">
-          <button
-            type="button"
-            onClick={() => setCustomerView('agreements')}
-            className="text-xs font-bold text-[#FFDF85] underline flex items-center gap-1 hover:text-white cursor-pointer"
-          >
-            <span>Review Agreement Clauses</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* ============================================================ */}
-      {/* 8. BRANCH INSIGHTS MODULE                                    */}
-      {/* ============================================================ */}
-      <div className="bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] p-4 shadow-sm space-y-3">
-        <div className="flex items-center justify-between border-b border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] pb-2.5">
-          <div>
-            <h2 className="text-sm font-extrabold text-[#1F1420] dark:text-[#F5ECF1]">
-              Branch Vault Insights
-            </h2>
-            <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
-              {activeLocker?.branchName}
-            </span>
-          </div>
-          <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-[#1E8E5A] border border-emerald-500/20 text-[10px] font-bold">
-            Best time: 10:30 AM
-          </span>
-        </div>
-
-        {/* Busy hours bar chart visual */}
-        <div className="space-y-1 text-xs">
-          <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4] font-bold uppercase tracking-wider">
-            Typical Vault Traffic (Weekdays)
-          </span>
-          <div className="grid grid-cols-6 gap-1 pt-1 items-end h-20 bg-[#FAF6F8] dark:bg-[#2E1624] p-2 rounded-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
-            {[
-              { time: '10 AM', height: '40%', busy: 'Low' },
-              { time: '12 PM', height: '85%', busy: 'Peak' },
-              { time: '2 PM', height: '55%', busy: 'Med' },
-              { time: '3 PM', height: '70%', busy: 'Med' },
-              { time: '4 PM', height: '95%', busy: 'Peak' },
-              { time: '5 PM', height: '30%', busy: 'Low' },
-            ].map(col => (
-              <div key={col.time} className="flex flex-col items-center gap-1 h-full justify-end">
-                <div
-                  className="w-full rounded-t-lg bg-[#97144D] hover:bg-[#6B0E37] transition-all"
-                  style={{ height: col.height }}
-                  title={`${col.time}: ${col.busy}`}
-                />
-                <span className="text-[9px] font-mono text-[#6B5B68] dark:text-[#A898A4]">{col.time}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
-          <div className="p-2 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
-            <span className="text-[#6B5B68] dark:text-[#A898A4] block">Operating Hours</span>
-            <span className="font-bold text-[#1F1420] dark:text-white">10:00 AM – 5:30 PM</span>
-          </div>
-          <div className="p-2 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
-            <span className="text-[#6B5B68] dark:text-[#A898A4] block">Holiday Notice</span>
-            <span className="font-bold text-[#1F1420] dark:text-white">2nd & 4th Sat Closed</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ============================================================ */}
-      {/* 9. COST & VISITS INSIGHTS (Two charts)                       */}
-      {/* ============================================================ */}
-      <div className="bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] p-4 shadow-sm space-y-3">
-        <h2 className="text-sm font-extrabold text-[#1F1420] dark:text-[#F5ECF1] border-b border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] pb-2.5">
-          Personal Locker Analytics
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          {/* Chart 1: Yearly cost breakdown */}
-          <div className="p-3 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] space-y-2">
-            <span className="font-bold text-xs text-[#1F1420] dark:text-white block">
-              Yearly Cost (Rent + 18% GST)
-            </span>
-            <div className="flex items-center gap-2 pt-1">
-              <div className="flex-1 bg-slate-200 dark:bg-black/30 h-3 rounded-full overflow-hidden flex">
-                <div className="bg-[#97144D] h-full" style={{ width: '82%' }} title="Base Rent" />
-                <div className="bg-[#C9A24B] h-full" style={{ width: '18%' }} title="GST (18%)" />
-              </div>
-            </div>
-            <div className="flex justify-between text-[11px] font-mono pt-1 text-[#6B5B68] dark:text-[#A898A4]">
-              <span>Base: ₹{(activeLocker?.annualRent || 4500).toLocaleString('en-IN')}</span>
-              <span>GST: ₹{Math.round((activeLocker?.annualRent || 4500) * 0.18).toLocaleString('en-IN')}</span>
-            </div>
-          </div>
-
-          {/* Chart 2: Visits per month */}
-          <div className="p-3 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] space-y-2">
-            <span className="font-bold text-xs text-[#1F1420] dark:text-white block">
-              Visits Frequency (Past 4 Months)
-            </span>
-            <div className="flex items-end gap-2 h-10 pt-1">
-              {[
-                { m: 'Jul', count: 1 },
-                { m: 'Aug', count: 2 },
-                { m: 'Sep', count: 1 },
-                { m: 'Oct', count: 3 }
-              ].map(item => (
-                <div key={item.m} className="flex-1 flex flex-col items-center gap-0.5">
-                  <div
-                    className="w-full bg-[#97144D] rounded-t-sm"
-                    style={{ height: `${item.count * 8 + 4}px` }}
+      {activeTab === 'insights' && (
+        <div className="space-y-3.5">
+          
+          {/* 1. HEALTH CARD (56px radial ring score + accordion checklist) */}
+          <div className="bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-[20px] p-4 shadow-xs space-y-3">
+            <div className="flex items-center gap-3.5">
+              {/* 56px radial ring */}
+              <div className="w-14 h-14 relative flex items-center justify-center shrink-0">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                  <path
+                    className="text-black/10 dark:text-white/10"
+                    strokeWidth="3.5"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   />
-                  <span className="text-[9px] font-mono text-[#6B5B68] dark:text-[#A898A4]">{item.m}</span>
+                  <path
+                    className="text-[#97144D] dark:text-[#FFDF85]"
+                    strokeDasharray={`${healthChecklist.score}, 100`}
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <div className="absolute text-center leading-none">
+                  <span className="font-['Manrope'] font-bold text-[14px] text-[#1F1420] dark:text-[#F3ECF0]">
+                    {healthChecklist.score}
+                  </span>
+                  <span className="text-[9px] text-[#6B5B68] dark:text-[#A898A4] block">/100</span>
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <div className="text-[16px] font-bold text-[#1F1420] dark:text-[#F3ECF0]">
+                  Locker Health Score
+                </div>
+                <p className="text-[12px] text-[#1E8E5A] dark:text-[#4ADE80] font-medium mt-0.5">
+                  Tier-1 Optimal · Full Statutory Compliance
+                </p>
+                <p className="text-[11px] text-[#6B5B68] dark:text-[#A898A4] mt-0.5">
+                  RBI safe deposit protocol checklist
+                </p>
+              </div>
+            </div>
+
+            {/* Accordion toggle: "View 5 checks" */}
+            <div className="pt-2 border-t border-[#E8DFE5]/60 dark:border-white/5">
+              <button
+                type="button"
+                onClick={() => setIsHealthAccordionOpen(!isHealthAccordionOpen)}
+                className="w-full flex items-center justify-between text-xs font-semibold text-[#97144D] dark:text-[#FFDF85] py-1 cursor-pointer"
+              >
+                <span>{isHealthAccordionOpen ? 'Hide compliance checks' : 'View 5 checks'}</span>
+                {isHealthAccordionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              {isHealthAccordionOpen && (
+                <div className="space-y-2 pt-2 text-xs">
+                  {healthChecklist.items.map(item => (
+                    <div key={item.id} className="flex items-center justify-between py-1 border-b border-[#E8DFE5]/40 dark:border-white/5 last:border-none">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span className="text-[#1F1420] dark:text-[#F3ECF0]">{item.label}</span>
+                      </div>
+                      <span className="font-mono text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
+                        +{item.weight} pts
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 2. YEARLY COST: RECHARTS DONUT WITH CENTER TOTAL & LEGEND BELOW */}
+          <div className="bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-[20px] p-4 shadow-xs space-y-3">
+            <SectionHeader title="Yearly Cost Breakdown" />
+
+            <div className="h-44 w-full relative flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={yearlyCostData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={52}
+                    outerRadius={68}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {yearlyCostData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip
+                    formatter={(val: any) => [`₹${Number(val || 0).toLocaleString('en-IN')}`, 'Amount']}
+                    contentStyle={{ borderRadius: 12, fontSize: 12 }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+
+              {/* Center Total in Donut */}
+              <div className="absolute flex flex-col items-center justify-center text-center pointer-events-none">
+                <span className="font-['Manrope'] font-bold text-[18px] text-[#1F1420] dark:text-[#F3ECF0] tabular-nums no-wrap-amount">
+                  ₹5,310
+                </span>
+                <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4]">Total/year</span>
+              </div>
+            </div>
+
+            {/* Legend BELOW (Not beside) */}
+            <div className="space-y-1.5 pt-2 border-t border-[#E8DFE5]/60 dark:border-white/5 text-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#97144D]" />
+                  <span className="text-[#6B5B68] dark:text-[#A898A4]">Base Annual Rent</span>
+                </div>
+                <span className="font-semibold text-[#1F1420] dark:text-[#F3ECF0] tabular-nums no-wrap-amount">
+                  ₹4,500
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#C9A24B]" />
+                  <span className="text-[#6B5B68] dark:text-[#A898A4]">GST (18%)</span>
+                </div>
+                <span className="font-semibold text-[#1F1420] dark:text-[#F3ECF0] tabular-nums no-wrap-amount">
+                  ₹810
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#008C88]" />
+                  <span className="text-[#6B5B68] dark:text-[#A898A4]">Maintenance & Security</span>
+                </div>
+                <span className="font-semibold text-[#1F1420] dark:text-[#F3ECF0] tabular-nums no-wrap-amount">
+                  ₹0
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. VISITS PER MONTH: FULL WIDTH BAR CHART WITH 12px AXIS LABELS */}
+          <div className="bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-[20px] p-4 shadow-xs space-y-3">
+            <SectionHeader title="Visits Frequency" />
+
+            <div className="h-40 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={visitsBarData} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                  <XAxis
+                    dataKey="month"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#6B5B68', fontSize: 12, fontFamily: 'Manrope' }}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#6B5B68', fontSize: 11 }}
+                  />
+                  <RechartsTooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white dark:bg-[#2B1626] border border-[#E8DFE5] dark:border-white/10 p-2 rounded-xl text-xs shadow-md">
+                            <p className="font-bold">{data.month}</p>
+                            <p className="text-[#97144D] dark:text-[#FFDF85] font-semibold">
+                              {data.visits} Strongroom Visit{data.visits > 1 ? 's' : ''}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="visits" radius={[6, 6, 0, 0]}>
+                    {visitsBarData.map((entry, index) => (
+                      <Cell
+                        key={`bar-${index}`}
+                        fill={entry.isCurrent ? '#C9A24B' : '#97144D'}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] text-[#6B5B68] dark:text-[#A898A4] pt-1 border-t border-[#E8DFE5]/60 dark:border-white/5">
+              <span>Current month (Oct) highlighted in gold</span>
+              <span className="font-bold text-[#C9A24B]">3 visits logged</span>
+            </div>
+          </div>
+
+          {/* 4. BRANCH BUSY HOURS: HORIZONTALLY SCROLLABLE HEAT STRIP */}
+          <div className="bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-[20px] p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <SectionHeader title="Branch Busy Hours" />
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[11px] font-semibold">
+                Best time: 10:30 AM
+              </span>
+            </div>
+
+            {/* Horizontal Heat Strip */}
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {busyHoursData.map(slot => (
+                <div
+                  key={slot.hour}
+                  className={`min-w-[64px] h-[58px] rounded-xl flex flex-col items-center justify-center p-1.5 shrink-0 ${slot.color}`}
+                >
+                  <span className="text-[12px] font-bold font-['Manrope']">{slot.hour}</span>
+                  <span className="text-[10px] opacity-80">{slot.level}</span>
                 </div>
               ))}
             </div>
+
+            {/* Operating hours & holiday notice */}
+            <div className="space-y-1 pt-2 border-t border-[#E8DFE5]/60 dark:border-white/5 text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
+              <p>Mon – Fri: 10:00 AM – 5:30 PM · 1st & 3rd Sat: 10:00 AM – 2:00 PM</p>
+              <p className="opacity-75">
+                Closed on 2nd & 4th Saturdays, Sundays & Negotiable Instruments Act Holidays
+              </p>
+            </div>
           </div>
+
         </div>
-      </div>
+      )}
 
       {/* ============================================================ */}
-      {/* 10. RECENT ACTIVITY (FILTERED: ALL / ACCESS / PAYMENTS / REQ) */}
+      {/* TAB 3: ACTIVITY (DATE-GROUPED TIMELINE)                     */}
       {/* ============================================================ */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="text-sm font-extrabold text-[#1F1420] dark:text-[#F5ECF1] tracking-tight">
-            Recent Activity
-          </h2>
-          {/* Activity Filters */}
-          <div className="flex items-center gap-1">
-            {(['All', 'Access', 'Payments', 'Requests'] as const).map(tab => (
+      {activeTab === 'activity' && (
+        <div className="space-y-3.5">
+          
+          {/* Filter Chips: All | Access | Payments | Requests */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            {(['All', 'Access', 'Payments', 'Requests'] as const).map(f => (
               <button
-                key={tab}
+                key={f}
                 type="button"
-                onClick={() => setActivityFilter(tab)}
-                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                  activityFilter === tab
-                    ? 'bg-[#97144D] text-white shadow-2xs'
-                    : 'bg-white dark:bg-[#221019] text-[#6B5B68] dark:text-[#A898A4] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]'
+                onClick={() => {
+                  setActivityFilter(f);
+                  setActivityPageSize(5);
+                }}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                  activityFilter === f
+                    ? 'bg-[#97144D] text-white shadow-xs font-bold'
+                    : 'bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] text-[#6B5B68] dark:text-[#A898A4]'
                 }`}
               >
-                {tab}
+                {f}
               </button>
             ))}
           </div>
-        </div>
 
-        <div className="bg-white dark:bg-[#221019] rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] divide-y divide-[#E8DFE5] dark:divide-[rgba(255,255,255,0.12)] shadow-sm overflow-hidden">
-          {filteredActivity.length === 0 ? (
-            <div className="p-6 text-center text-xs text-[#6B5B68] dark:text-[#A898A4]">
-              No activity logs recorded under {activityFilter}.
-            </div>
-          ) : (
-            filteredActivity.map(act => (
-              <div key={act.id} className="p-3.5 flex items-center justify-between gap-3 text-xs">
-                <div className="space-y-0.5 min-w-0">
-                  <span className="font-bold text-xs text-[#1F1420] dark:text-white block truncate">
-                    {act.title}
-                  </span>
-                  <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4] block truncate">
-                    {act.subtitle}
-                  </span>
-                  <span className="text-[10px] font-mono text-[#6B5B68] dark:text-[#A898A4]/70 block">
-                    {act.date}
-                  </span>
+          {/* Date-grouped timeline items */}
+          <div className="space-y-3">
+            {(['Today', 'Yesterday', 'Earlier'] as const).map(groupName => {
+              const items = groupedActivity.groups[groupName];
+              if (!items || items.length === 0) return null;
+
+              return (
+                <div key={groupName} className="space-y-2">
+                  <div className="text-[12px] font-bold text-[#6B5B68] dark:text-[#A898A4] px-1 uppercase tracking-wider">
+                    {groupName}
+                  </div>
+
+                  <div className="space-y-2">
+                    {items.map(item => (
+                      <div
+                        key={item.id}
+                        className="p-3 bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-[18px] flex items-center justify-between gap-3 text-xs shadow-xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-xl bg-black/5 dark:bg-white/10 flex items-center justify-center shrink-0 text-[#97144D] dark:text-[#FFDF85]">
+                            {item.type === 'access' ? (
+                              <Key className="w-4 h-4" />
+                            ) : item.type === 'payment' ? (
+                              <CreditCard className="w-4 h-4" />
+                            ) : (
+                              <FileText className="w-4 h-4" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-semibold text-[14px] text-[#1F1420] dark:text-[#F3ECF0] block truncate">
+                              {item.title}
+                            </span>
+                            <span className="text-[12px] text-[#6B5B68] dark:text-[#A898A4] block truncate">
+                              {item.subtitle}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-[11px] font-mono text-[#6B5B68] dark:text-[#A898A4] block tabular-nums">
+                            {item.formattedDate}
+                          </span>
+                          {item.status && (
+                            <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                              {item.status}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                {act.status && (
-                  <StatusBadge status={act.status as any} size="sm" />
-                )}
-              </div>
-            ))
+              );
+            })}
+          </div>
+
+          {/* "Load more" button */}
+          {groupedActivity.hasMore && (
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => setActivityPageSize(prev => prev + 5)}
+                className="w-full py-2.5 bg-white dark:bg-[#231221] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.08)] rounded-xl text-xs font-semibold text-[#97144D] dark:text-[#FFDF85] active-press cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              >
+                Load more activity
+              </button>
+            </div>
           )}
+
         </div>
-      </div>
+      )}
 
       {/* ============================================================ */}
-      {/* 11. ASK SAFEVAULT: FLOATING ASSISTANT BUTTON & CHAT SHEET   */}
+      {/* FLOATING "ASK SAFEVAULT" BUTTON (48px ROUND ICON-ONLY)       */}
       {/* ============================================================ */}
-      <div className="fixed bottom-20 right-4 sm:right-auto sm:left-[calc(50%+130px)] z-40">
+      <div
+        className={`fixed bottom-20 right-4 sm:right-auto sm:left-[calc(50%+150px)] z-30 transition-all duration-300 ${
+          showChatButton ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
+        }`}
+      >
         <button
           type="button"
-          onClick={() => setIsAskOpen(true)}
-          className="h-12 px-4 rounded-full bg-gradient-to-r from-[#6B0E37] to-[#97144D] text-white font-extrabold text-xs shadow-xl flex items-center gap-2 border border-[#FFDF85]/40 hover:scale-105 transition-all active-press cursor-pointer"
+          onClick={() => setIsChatOpen(true)}
+          className="w-12 h-12 rounded-full bg-[#97144D] hover:bg-[#851144] text-[#FFDF85] shadow-xl flex items-center justify-center active:scale-95 transition-transform cursor-pointer border border-[#FFDF85]/40"
+          title="Ask SafeVault Assistant"
           aria-label="Ask SafeVault Assistant"
         >
-          <Bot className="w-5 h-5 text-[#FFDF85]" />
-          <span className="hidden xs:inline">Ask SafeVault</span>
+          <Bot className="w-6 h-6 text-[#FFDF85]" />
         </button>
       </div>
 
-      {/* Floating Chat Bottom Sheet */}
-      {isAskOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#221019] rounded-t-3xl sm:rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] max-w-sm w-full h-[520px] flex flex-col shadow-2xl text-xs overflow-hidden animate-in slide-in-from-bottom duration-250">
-            {/* Chat Header */}
-            <div className="p-3.5 bg-gradient-to-r from-[#6B0E37] to-[#97144D] text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-[#FFDF85]" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-sm text-white">Ask SafeVault</h3>
-                  <span className="text-[10px] text-white/80">Automated Banking Assistant</span>
-                </div>
+      {/* ============================================================ */}
+      {/* BOTTOM SHEET 1: COMPLIANCE CHECKLIST (FROM 44px HEALTH RING) */}
+      {/* ============================================================ */}
+      {isHealthSheetOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-[#1E0C16] text-[#1F1420] dark:text-[#F5ECF1] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto shadow-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+            <div className="flex items-center justify-between border-b border-[#E8DFE5]/60 dark:border-white/10 pb-3">
+              <div>
+                <h3 className="text-[17px] font-bold text-[#1F1420] dark:text-[#F3ECF0]">
+                  Locker Compliance Checklist
+                </h3>
+                <span className="text-[12px] text-[#1E8E5A] dark:text-[#4ADE80] font-medium">
+                  Score: 100/100 · Tier-1 Maximum Security
+                </span>
               </div>
               <button
                 type="button"
-                onClick={() => setIsAskOpen(false)}
-                className="p-1 rounded-lg text-white hover:bg-white/10"
+                onClick={() => setIsHealthSheetOpen(false)}
+                className="p-1.5 rounded-full text-[#6B5B68] hover:text-[#1F1420] dark:hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Quick Prompt Pills */}
-            <div className="p-2.5 bg-[#FAF6F8] dark:bg-[#2E1624] border-b border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] flex gap-1.5 overflow-x-auto scrollbar-none shrink-0">
-              {[
-                'When is my rent due?',
-                'How to nominate?',
-                'Lost key policy',
-                'Cancellation fee'
-              ].map(prompt => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => handleSendChat(prompt)}
-                  className="px-2.5 py-1 rounded-full bg-white dark:bg-[#221019] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] text-[10px] font-bold text-[#97144D] dark:text-[#FFDF85] whitespace-nowrap hover:bg-[#FAF6F8] cursor-pointer"
+            <div className="space-y-2.5 text-xs">
+              {healthChecklist.items.map(item => (
+                <div
+                  key={item.id}
+                  className="p-3 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5 flex items-center justify-between"
                 >
-                  {prompt}
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <div>
+                      <span className="font-semibold text-[#1F1420] dark:text-[#F3ECF0] block">
+                        {item.label}
+                      </span>
+                      <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
+                        Status: Verified active in CBS
+                      </span>
+                    </div>
+                  </div>
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                    +{item.weight} pts
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/15 rounded-xl border border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-200">
+              Your locker is fully compliant with all RBI statutory operating mandates, insurance criteria, and KYC norms.
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsHealthSheetOpen(false)}
+              className="w-full h-11 bg-[#97144D] text-white font-bold rounded-xl text-xs active-press cursor-pointer"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* BOTTOM SHEET 2: KEBAB ... MENU (QUICK INFO & ACTIONS)        */}
+      {/* ============================================================ */}
+      {isKebabMenuOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-[#1E0C16] text-[#1F1420] dark:text-[#F5ECF1] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+            <div className="flex items-center justify-between border-b border-[#E8DFE5]/60 dark:border-white/10 pb-3">
+              <div>
+                <h3 className="text-[17px] font-bold text-[#1F1420] dark:text-[#F3ECF0]">
+                  Locker Options · Safe #{activeLocker.lockerNumber}
+                </h3>
+                <span className="text-[12px] text-[#6B5B68] dark:text-[#A898A4]">
+                  Key #K-9821 · Godrej Pentabolt Strongroom
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsKebabMenuOpen(false)}
+                className="p-1.5 rounded-full text-[#6B5B68] hover:text-[#1F1420] dark:hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {/* Emergency Vault Freeze Toggle */}
+              <button
+                type="button"
+                onClick={handleToggleFreeze}
+                className="w-full p-3 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5 flex items-center justify-between text-left active-press cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#97144D]/10 dark:bg-[#97144D]/25 flex items-center justify-center text-[#97144D] dark:text-[#FFDF85]">
+                    {activeLocker.status === 'Blocked' ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-xs text-[#1F1420] dark:text-[#F3ECF0] block">
+                      {activeLocker.status === 'Blocked' ? 'Lift Security Restriction' : 'Emergency Security Freeze'}
+                    </span>
+                    <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
+                      {activeLocker.status === 'Blocked' ? 'Re-enable strongroom biometric access' : 'Instantly halt turnstile entry'}
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-[#6B5B68]" />
+              </button>
+
+              {/* View Full Specifications */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsKebabMenuOpen(false);
+                  setDetailLocker(activeLocker);
+                }}
+                className="w-full p-3 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5 flex items-center justify-between text-left active-press cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-black/5 dark:bg-white/10 flex items-center justify-center text-[#1F1420] dark:text-white">
+                    <Building className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-semibold text-xs text-[#1F1420] dark:text-[#F3ECF0] block">
+                      Locker Specifications
+                    </span>
+                    <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
+                      Dimensions, deposit lien, branch sector
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-[#6B5B68]" />
+              </button>
+
+              {/* Surrender Locker */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsKebabMenuOpen(false);
+                  setCustomerView('closure');
+                }}
+                className="w-full p-3 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5 flex items-center justify-between text-left active-press cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-600">
+                    <ShieldAlert className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-semibold text-xs text-[#1F1420] dark:text-[#F3ECF0] block">
+                      Surrender Locker
+                    </span>
+                    <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4]">
+                      Initiate surrender settlement & FD refund
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-[#6B5B68]" />
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsKebabMenuOpen(false)}
+              className="w-full h-10 bg-black/5 dark:bg-white/10 text-[#1F1420] dark:text-white font-semibold rounded-xl text-xs active-press cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* BOTTOM SHEET 3: "MORE" ACTIONS SHEET                         */}
+      {/* ============================================================ */}
+      {isMoreSheetOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-[#1E0C16] text-[#1F1420] dark:text-[#F5ECF1] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+            <div className="flex items-center justify-between border-b border-[#E8DFE5]/60 dark:border-white/10 pb-3">
+              <div>
+                <h3 className="text-[17px] font-bold text-[#1F1420] dark:text-[#F3ECF0]">
+                  More Services
+                </h3>
+                <span className="text-[12px] text-[#6B5B68] dark:text-[#A898A4]">
+                  SafeVault operations & documentation
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMoreSheetOpen(false)}
+                className="p-1.5 rounded-full text-[#6B5B68] hover:text-[#1F1420] dark:hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoreSheetOpen(false);
+                  setCustomerView('vault');
+                }}
+                className="p-3 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5 text-left active-press cursor-pointer space-y-1"
+              >
+                <FileText className="w-5 h-5 text-[#97144D] dark:text-[#FFDF85]" />
+                <span className="font-semibold block text-[#1F1420] dark:text-[#F3ECF0]">Documents</span>
+                <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4] block">Allotment letter, receipts</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoreSheetOpen(false);
+                  setCustomerView('agreements');
+                }}
+                className="p-3 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5 text-left active-press cursor-pointer space-y-1"
+              >
+                <ShieldCheck className="w-5 h-5 text-[#97144D] dark:text-[#FFDF85]" />
+                <span className="font-semibold block text-[#1F1420] dark:text-[#F3ECF0]">Agreements & KYC</span>
+                <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4] block">Model agreement, SHCIL</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoreSheetOpen(false);
+                  setCustomerView('requests');
+                }}
+                className="p-3 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5 text-left active-press cursor-pointer space-y-1"
+              >
+                <Key className="w-5 h-5 text-[#97144D] dark:text-[#FFDF85]" />
+                <span className="font-semibold block text-[#1F1420] dark:text-[#F3ECF0]">Service Requests</span>
+                <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4] block">Lock break-open, repair</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoreSheetOpen(false);
+                  setCustomerView('waitlist');
+                }}
+                className="p-3 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5 text-left active-press cursor-pointer space-y-1"
+              >
+                <Clock className="w-5 h-5 text-[#97144D] dark:text-[#FFDF85]" />
+                <span className="font-semibold block text-[#1F1420] dark:text-[#F3ECF0]">Waitlist</span>
+                <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4] block">Track queue position</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoreSheetOpen(false);
+                  setCustomerView('support');
+                }}
+                className="p-3 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5 text-left active-press cursor-pointer space-y-1"
+              >
+                <HeartHandshake className="w-5 h-5 text-[#97144D] dark:text-[#FFDF85]" />
+                <span className="font-semibold block text-[#1F1420] dark:text-[#F3ECF0]">Support</span>
+                <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4] block">Helpdesk & grievance</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoreSheetOpen(false);
+                  if (onOpenAllServices) onOpenAllServices();
+                }}
+                className="p-3 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5 text-left active-press cursor-pointer space-y-1"
+              >
+                <Grid className="w-5 h-5 text-[#97144D] dark:text-[#FFDF85]" />
+                <span className="font-semibold block text-[#1F1420] dark:text-[#F3ECF0]">All Services</span>
+                <span className="text-[11px] text-[#6B5B68] dark:text-[#A898A4] block">Full directory</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* BOTTOM SHEET 4: AVAILABLE BALANCE STEP-UP SHEET              */}
+      {/* ============================================================ */}
+      {isBalanceSheetOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-[#1E0C16] text-[#1F1420] dark:text-[#F5ECF1] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+            <div className="flex items-center justify-between border-b border-[#E8DFE5]/60 dark:border-white/10 pb-3">
+              <div>
+                <h3 className="text-[17px] font-bold text-[#1F1420] dark:text-[#F3ECF0]">
+                  Available Balance
+                </h3>
+                <span className="text-[12px] text-[#6B5B68] dark:text-[#A898A4]">
+                  Step-up authenticated rent debit account
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBalanceSheetOpen(false)}
+                className="p-1.5 rounded-full text-[#6B5B68] hover:text-[#1F1420] dark:hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <AvailableBalanceCard
+              onNavigateToPayments={() => {
+                setIsBalanceSheetOpen(false);
+                setCustomerView('rent');
+              }}
+              onNavigateToAutoDebit={() => {
+                setIsBalanceSheetOpen(false);
+                setCustomerView('rent');
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* BOTTOM SHEET 5: FULL LOCKER DETAILS SHEET                    */}
+      {/* ============================================================ */}
+      {detailLocker && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-[#1E0C16] text-[#1F1420] dark:text-[#F5ECF1] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)]">
+            <div className="flex items-center justify-between border-b border-[#E8DFE5]/60 dark:border-white/10 pb-3">
+              <div>
+                <span className="text-[11px] font-bold text-[#97144D] dark:text-[#FFDF85] uppercase tracking-wider block">
+                  VAULT SPECIFICATION
+                </span>
+                <h3 className="text-[18px] font-bold text-[#1F1420] dark:text-white">
+                  Safe #{detailLocker.lockerNumber} ({detailLocker.size})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailLocker(null)}
+                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2.5 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5">
+                <span className="text-[#6B5B68] dark:text-[#A898A4] block">Dimensions</span>
+                <span className="font-mono font-bold text-[#1F1420] dark:text-white">{detailLocker.dimensions || '125 x 175 x 492 mm'}</span>
+              </div>
+              <div className="p-2.5 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5">
+                <span className="text-[#6B5B68] dark:text-[#A898A4] block">Allotment Date</span>
+                <span className="font-mono font-bold text-[#1F1420] dark:text-white">{detailLocker.allotmentDate || '15 Jan 2024'}</span>
+              </div>
+              <div className="p-2.5 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5">
+                <span className="text-[#6B5B68] dark:text-[#A898A4] block">Key Identifier</span>
+                <span className="font-mono font-bold text-[#97144D] dark:text-[#FFDF85]">{detailLocker.keyNumber || 'K-9821'}</span>
+              </div>
+              <div className="p-2.5 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-xl border border-[#E8DFE5]/60 dark:border-white/5">
+                <span className="text-[#6B5B68] dark:text-[#A898A4] block">Security Deposit (FD)</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{formatIndianCurrency(detailLocker.securityDeposit)}</span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-[#FAF6F8] dark:bg-[#2A1220] rounded-2xl border border-[#E8DFE5]/60 dark:border-white/5 space-y-1 text-xs">
+              <span className="text-[#6B5B68] dark:text-[#A898A4] font-bold block uppercase text-[10px]">Branch Strongroom Location</span>
+              <p className="font-semibold text-[#1F1420] dark:text-white">{detailLocker.branchName}</p>
+              <p className="text-[#6B5B68] dark:text-[#A898A4] text-[11px]">Vault Chamber Alpha · Strongroom Turnstile Sector 4</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setDetailLocker(null)}
+              className="w-full h-11 bg-[#97144D] text-white font-bold rounded-xl text-xs active-press cursor-pointer"
+            >
+              Close Details
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* BOTTOM SHEET 6: ASK SAFEVAULT CHAT SHEET                     */}
+      {/* ============================================================ */}
+      {isChatOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-[#1E0C16] text-[#1F1420] dark:text-[#F5ECF1] w-full max-w-md h-[80vh] rounded-t-3xl sm:rounded-3xl shadow-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] flex flex-col overflow-hidden">
+            
+            {/* Sheet Header */}
+            <div className="p-4 border-b border-[#E8DFE5]/60 dark:border-white/10 flex items-center justify-between shrink-0 bg-[#FAF6F8] dark:bg-[#2A1220]">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-[#97144D] text-[#FFDF85] flex items-center justify-center">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-[16px] font-bold text-[#1F1420] dark:text-[#F5ECF1]">
+                    Ask SafeVault
+                  </h3>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Online Vault Support Assistant
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsChatOpen(false)}
+                className="p-1.5 rounded-full text-[#6B5B68] hover:text-[#1F1420] dark:hover:text-[#F5ECF1]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Queries */}
+            <div className="p-2 border-b border-[#E8DFE5]/60 dark:border-white/10 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+              {[
+                'Branch timings?',
+                'How to add nominee?',
+                'Lost locker key?',
+                'Annual rent breakdown',
+                'Statutory liability'
+              ].map(pill => (
+                <button
+                  key={pill}
+                  type="button"
+                  onClick={() => handleSendChat(pill)}
+                  className="px-2.5 py-1 rounded-full bg-[#FAF6F8] dark:bg-[#2A1220] border border-[#E8DFE5]/60 dark:border-white/10 text-[10px] font-semibold text-[#1F1420] dark:text-[#F5ECF1] hover:border-[#97144D] shrink-0 active-press cursor-pointer"
+                >
+                  {pill}
                 </button>
               ))}
             </div>
 
-            {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
-              {chatMessages.map((m, idx) => (
+            {/* Messages Body */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-3">
+              {chatMessages.map((msg, idx) => (
                 <div
                   key={idx}
-                  className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[82%] p-3 rounded-2xl text-xs leading-relaxed ${
-                      m.sender === 'user'
-                        ? 'bg-[#97144D] text-white rounded-br-none'
-                        : 'bg-[#FAF6F8] dark:bg-[#2E1624] text-[#1F1420] dark:text-white border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] rounded-bl-none'
+                    className={`max-w-[80%] p-3 rounded-2xl text-xs leading-relaxed ${
+                      msg.sender === 'user'
+                        ? 'bg-[#97144D] text-white rounded-br-xs'
+                        : 'bg-[#FAF6F8] dark:bg-[#2A1220] border border-[#E8DFE5]/60 dark:border-white/10 text-[#1F1420] dark:text-[#F5ECF1] rounded-bl-xs'
                     }`}
                   >
-                    <p>{m.text}</p>
-                    <span className="text-[9px] font-mono opacity-70 block mt-1 text-right">
-                      {m.time}
+                    <p>{msg.text}</p>
+                    <span className="text-[9px] opacity-60 block text-right mt-1 font-mono">
+                      {msg.time}
                     </span>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Chat Input */}
-            <form
-              onSubmit={e => {
-                e.preventDefault();
-                handleSendChat();
-              }}
-              className="p-3 bg-white dark:bg-[#221019] border-t border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] flex items-center gap-2 shrink-0"
-            >
+            {/* Input Area */}
+            <div className="p-3 border-t border-[#E8DFE5]/60 dark:border-white/10 flex items-center gap-2 shrink-0">
               <input
                 type="text"
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
-                placeholder="Ask a question..."
-                className="flex-1 h-10 px-3 bg-[#FAF6F8] dark:bg-[#2E1624] border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] rounded-xl text-xs text-[#1F1420] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#97144D]"
+                onKeyDown={e => e.key === 'Enter' && handleSendChat()}
+                placeholder="Ask about lockers, visits, or policies..."
+                className="flex-1 h-10 rounded-xl bg-[#FAF6F8] dark:bg-[#2A1220] border border-[#E8DFE5]/60 dark:border-white/10 px-3 text-xs text-[#1F1420] dark:text-[#F5ECF1] focus:outline-none focus:ring-2 focus:ring-[#97144D]"
               />
               <button
-                type="submit"
-                className="w-10 h-10 rounded-xl bg-[#97144D] hover:bg-[#6B0E37] text-white flex items-center justify-center shrink-0 cursor-pointer active-press"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* RESCHEDULE CHARGE PREVIEW SHEET */}
-      {rescheduleSheetApt && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#221019] rounded-t-3xl sm:rounded-3xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] max-w-sm w-full p-5 space-y-4 shadow-2xl text-xs animate-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between border-b border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] pb-2.5">
-              <div>
-                <h3 className="text-base font-extrabold text-[#1F1420] dark:text-white">
-                  Reschedule Visit
-                </h3>
-                <span className="text-[10px] font-bold text-[#97144D] dark:text-[#FFDF85] uppercase">
-                  Charges as per bank policy (demo values)
-                </span>
-              </div>
-              <button
                 type="button"
-                onClick={() => setRescheduleSheetApt(null)}
-                className="p-1.5 rounded-lg text-[#6B5B68] hover:bg-black/5"
+                onClick={() => handleSendChat()}
+                className="w-10 h-10 rounded-xl bg-[#97144D] text-white flex items-center justify-center hover:bg-[#6B0E37] transition-colors shrink-0 active-press cursor-pointer"
               >
-                ✕
+                <Send className="w-4 h-4 text-[#FFDF85]" />
               </button>
             </div>
 
-            {(() => {
-              const resFee = computeRescheduleCharge(rescheduleSheetApt.date, rescheduleSheetApt.timeSlot, 0);
-              return (
-                <div className="space-y-3">
-                  <div className="p-3 bg-[#FAF6F8] dark:bg-[#2E1624] rounded-2xl border border-[#E8DFE5] dark:border-[rgba(255,255,255,0.12)] space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-[#6B5B68] dark:text-[#A898A4]">Current Slot:</span>
-                      <span className="font-bold text-[#1F1420] dark:text-white">{rescheduleSheetApt.date} · {rescheduleSheetApt.timeSlot}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#6B5B68] dark:text-[#A898A4]">Applied Slab:</span>
-                      <span className="font-bold text-[#97144D] dark:text-[#FFDF85]">{resFee.slabLabel}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#6B5B68] dark:text-[#A898A4]">Fee:</span>
-                      <span className="font-mono font-black text-sm text-[#1F1420] dark:text-white">
-                        {resFee.totalCharge === 0 ? 'FREE' : `₹${resFee.totalCharge} (incl. 18% GST)`}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRescheduleSheetApt(null);
-                      setCustomerView('visit');
-                    }}
-                    className="w-full h-11 bg-[#97144D] hover:bg-[#6B0E37] text-white font-bold rounded-xl text-xs shadow-md cursor-pointer active-press"
-                  >
-                    Proceed to Choose New Slot
-                  </button>
-                </div>
-              );
-            })()}
           </div>
         </div>
       )}
 
-      {/* OTP Step-Up Modal for Security Freeze */}
+      {/* OTP MODAL FOR FREEZE / UNFREEZE */}
       <OtpModal
         isOpen={isOtpOpen}
         onClose={() => setIsOtpOpen(false)}
         onSuccess={handleOtpSuccess}
-        title={otpAction === 'freeze' ? 'Confirm Security Freeze' : 'Lift Security Freeze'}
-        actionDescription={
-          otpAction === 'freeze'
-            ? 'Place emergency biometric lockout on your locker compartment'
-            : 'Restore normal biometric access to your locker compartment'
-        }
+        title={otpAction === 'freeze' ? 'Emergency Vault Freeze' : 'Lift Access Restriction'}
+        actionDescription={`Authorizing ${otpAction === 'freeze' ? 'immediate security freeze' : 'unfreezing'} on Safe #${activeLocker?.lockerNumber}`}
       />
 
     </div>

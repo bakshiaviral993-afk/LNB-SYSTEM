@@ -56,7 +56,7 @@ export const AllServicesDrawer: React.FC<AllServicesDrawerProps> = ({
   onClose,
   onOpenTraceabilityMatrix
 }) => {
-  const { setCustomerView } = useBanking();
+  const { setCustomerView, lowBalanceDemoMode, toggleLowBalanceDemoMode } = useBanking();
   const { theme, setTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -335,6 +335,29 @@ export const AllServicesDrawer: React.FC<AllServicesDrawerProps> = ({
             >
               <Laptop className="w-3.5 h-3.5" />
               <span>System</span>
+            </button>
+          </div>
+
+          {/* Demo Settings: Low Balance Scenario Toggle */}
+          <div className="pt-2 border-t border-[#E8DFE5] dark:border-[#381B30] flex items-center justify-between text-xs">
+            <div>
+              <span className="font-bold text-[#1F1420] dark:text-[#F3ECF0] block">
+                Demo: Low Balance Scenario
+              </span>
+              <span className="text-[10px] text-[#6B5B68] dark:text-[#A898A4]">
+                Simulates balance of ₹3,200 &lt; ₹5,310 rent due
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={toggleLowBalanceDemoMode}
+              className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                lowBalanceDemoMode
+                  ? 'bg-amber-400 text-amber-950 font-black shadow-xs'
+                  : 'bg-[#FAF6F8] dark:bg-[#20101D] text-[#6B5B68] dark:text-[#A898A4] border border-[#E8DFE5] dark:border-[#381B30]'
+              }`}
+            >
+              {lowBalanceDemoMode ? 'Active (₹3.2K)' : 'Off (₹2.84L)'}
             </button>
           </div>
         </div>

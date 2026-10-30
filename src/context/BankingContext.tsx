@@ -195,6 +195,14 @@ interface BankingContextType {
 
   // Global reset for testing
   resetDemoData: () => void;
+
+  // Audit & Alerts
+  addAudit: (user: string, userRole: string, action: string, entityType: string, entityId: string, branchName: string, details: string) => void;
+  addNotification: (title: string, message: string, category: NotificationItem['category']) => void;
+
+  // Demo Scenarios
+  lowBalanceDemoMode: boolean;
+  toggleLowBalanceDemoMode: () => void;
 }
 
 const BankingContext = createContext<BankingContextType | undefined>(undefined);
@@ -218,6 +226,8 @@ export const BankingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [customerView, setCustomerView] = useState<string>('dashboard');
   const [adminView, setAdminView] = useState<string>('admin-dashboard');
   const [selectedLockerId, setSelectedLockerId] = useState<string>('lck-125');
+  const [lowBalanceDemoMode, setLowBalanceDemoMode] = useState<boolean>(false);
+  const toggleLowBalanceDemoMode = () => setLowBalanceDemoMode(prev => !prev);
 
   // Master State with lazy localStorage init
   const [branches, setBranches] = useState<Branch[]>(() => {
@@ -2023,6 +2033,10 @@ export const BankingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         isQaSuiteOpen,
         setIsQaSuiteOpen,
         resetDemoData,
+        addAudit,
+        addNotification,
+        lowBalanceDemoMode,
+        toggleLowBalanceDemoMode,
       }}
     >
       {children}

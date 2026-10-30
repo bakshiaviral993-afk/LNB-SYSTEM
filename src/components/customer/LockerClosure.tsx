@@ -284,7 +284,7 @@ export const LockerClosure: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#6B5B68] dark:text-[#A898A4]">Credit Account:</span>
-                  <span className="font-mono font-bold text-[#1F1420] dark:text-white">•••• 1720</span>
+                  <span className="font-mono font-bold text-[#1F1420] dark:text-white">Savings Account - xxxx 1720</span>
                 </div>
               </div>
 

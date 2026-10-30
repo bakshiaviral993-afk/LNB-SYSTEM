@@ -18,6 +18,8 @@
     --error: #C62828;
     --booked: #D9D3D6;
 
+    --overline-color: #7A5B6B;
+
     /* Legacy compatibility tokens */
     --color-primary-burgundy: var(--primary);
     --color-deep-burgundy: var(--primary-deep);
@@ -32,6 +34,7 @@
     --color-error: var(--error);
     --color-booked: var(--booked);
 
+    --font-display: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
   }
@@ -51,6 +54,8 @@
     --warning: #F5A623;
     --error: #E5484D;
     --booked: #3D2938;
+
+    --overline-color: #C9AAB9;
 
     /* Legacy compatibility tokens */
     --color-surface: var(--bg);
@@ -75,6 +80,129 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+}
+
+/* Typography Font Families */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Typography Scale Classes (Strict Mobile Design System) */
+/* Page title: 22/28 bold */
+.text-page-title {
+  font-family: var(--font-display);
+  font-size: 1.375rem; /* 22px */
+  line-height: 1.75rem; /* 28px */
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Section title: 17/24 bold */
+.text-section-title {
+  font-family: var(--font-display);
+  font-size: 1.0625rem; /* 17px */
+  line-height: 1.5rem; /* 24px */
+  font-weight: 700;
+}
+
+/* Card title: 16/22 semi-bold */
+.text-card-title {
+  font-family: var(--font-display);
+  font-size: 1rem; /* 16px */
+  line-height: 1.375rem; /* 22px */
+  font-weight: 600;
+}
+
+/* Body: 14/20 */
+.text-body {
+  font-family: var(--font-sans);
+  font-size: 0.875rem; /* 14px */
+  line-height: 1.25rem; /* 20px */
+  font-weight: 400;
+}
+
+/* Secondary: 13/18 */
+.text-secondary {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.125rem; /* 18px */
+  font-weight: 400;
+}
+
+/* Caption: 12/16 */
+.text-caption {
+  font-family: var(--font-sans);
+  font-size: 0.75rem; /* 12px */
+  line-height: 1rem; /* 16px */
+  font-weight: 500;
+}
+
+/* Overline: 11/14 semi-bold uppercase, ONLY for small labels above values */
+.text-overline {
+  font-family: var(--font-display);
+  font-size: 0.6875rem; /* 11px */
+  line-height: 0.875rem; /* 14px */
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--overline-color);
+}
+
+/* Buttons: 14/600 */
+.text-btn {
+  font-family: var(--font-display);
+  font-size: 0.875rem; /* 14px */
+  line-height: 1.25rem; /* 20px */
+  font-weight: 600;
+}
+
+/* JetBrains Mono ONLY for IDs, tokens and key numbers: 12-13px */
+.text-mono-id {
+  font-family: var(--font-mono);
+  font-size: 0.75rem; /* 12px */
+  line-height: 1.125rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+@media (min-width: 640px) {
+  .text-mono-id {
+    font-size: 0.8125rem; /* 13px */
+  }
+}
+
+/* Currency and amounts never wrap */
+.no-wrap-amount {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 13/18 JetBrains Mono 500 letter-spacing 0.02em */
+.text-mono-id {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* Tabular figures for numerical & monetary alignment across all tables/dates/times */
+.tabular-nums, table, [data-numeric="true"], .font-mono {
+  font-variant-numeric: tabular-nums;
+  -webkit-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
 }
 
 /* Glassmorphism utility */
@@ -92,9 +220,16 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-/* Tabular figures for numerical & monetary alignment */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
+/* Premium Card with 24px radius and layered shadows */
+.premium-card {
+  border-radius: 1.5rem; /* 24px */
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 4px 20px -2px rgba(151, 20, 77, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+}
+
+.dark .premium-card, [data-theme="dark"] .premium-card {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 24px -4px rgba(0, 0, 0, 0.4);
 }
 
 /* Custom premium scrollbar */
@@ -116,24 +251,26 @@
   background: #97144D;
 }
 
-/* Micro-animations */
-@keyframes radarPing {
+/* Shimmer Loading Skeleton */
+@keyframes shimmer {
   0% {
-    transform: scale(0.95);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.6);
-    opacity: 0.2;
+    background-position: -200% 0;
   }
   100% {
-    transform: scale(2.2);
-    opacity: 0;
+    background-position: 200% 0;
   }
 }
 
-.animate-radar {
-  animation: radarPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(232, 223, 229, 0.3) 25%, rgba(232, 223, 229, 0.7) 50%, rgba(232, 223, 229, 0.3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.dark .skeleton-shimmer, [data-theme="dark"] .skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }
 
 /* Press scale feedback */

@@ -138,6 +138,7 @@ export interface Appointment {
   attendees?: string;
   status: 'Confirmed' | 'Checked In' | 'Completed' | 'Cancelled' | 'Rescheduled';
   qrCodeToken: string;
+  queueToken?: string;
   checkInTime?: string;
   completedTime?: string;
   escortOfficer?: string;

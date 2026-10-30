@@ -43,7 +43,7 @@ export const RentPayments: React.FC = () => {
 
   // Auto-debit preference
   const [autoDebitEnabled, setAutoDebitEnabled] = useState(true);
-  const [autoDebitAccount, setAutoDebitAccount] = useState('5010049281720 (National Bank Premier Savings)');
+  const [autoDebitAccount, setAutoDebitAccount] = useState('Savings Account - xxxx 1720');
   const [maxDebitCap, setMaxDebitCap] = useState('15,000');
 
   // Document modal state
@@ -384,7 +384,7 @@ export const RentPayments: React.FC = () => {
             <div className="space-y-2 pt-2 border-t border-[#E8DFE5] dark:border-[#381B30] text-xs">
               <div className="flex justify-between">
                 <span className="text-[#6B5B68] dark:text-[#A898A4]">Deduction Account:</span>
-                <span className="font-mono font-medium text-[#1F1420] dark:text-white">5010049281720</span>
+                <span className="font-mono font-medium text-[#1F1420] dark:text-white">Savings Account - xxxx 1720</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#6B5B68] dark:text-[#A898A4]">Mandate Ceiling:</span>

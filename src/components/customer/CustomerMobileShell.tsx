@@ -115,9 +115,9 @@ export const CustomerMobileShell: React.FC = () => {
           </div>
         </div>
 
-        {/* Premium Mobile App Header */}
-        <header className="bg-gradient-to-r from-[#6B0E37] via-[#851144] to-[#97144D] text-white px-3.5 py-2.5 flex items-center justify-between sticky top-0 z-30 shadow-md shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
+        {/* Premium Mobile App Header (Strict 56px) */}
+        <header className="h-[56px] bg-gradient-to-r from-[#6B0E37] via-[#851144] to-[#97144D] text-white px-3.5 flex items-center justify-between sticky top-0 z-30 shadow-md shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
             {customerView !== 'dashboard' ? (
               <button
                 onClick={() => setCustomerView('dashboard')}
@@ -127,34 +127,28 @@ export const CustomerMobileShell: React.FC = () => {
                 <ChevronLeft className="w-5 h-5" />
               </button>
             ) : (
-              /* Generic Burgundy Monogram Placeholder: SV */
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#97144D] to-[#4A0A26] border border-[#C9A24B]/60 flex items-center justify-center text-white font-black text-sm tracking-tighter shadow-md shrink-0">
+              /* Generic Burgundy Monogram Placeholder: SV (32px) */
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#97144D] to-[#4A0A26] border border-[#C9A24B]/60 flex items-center justify-center text-white font-black text-xs tracking-tighter shadow-sm shrink-0">
                 <span className="text-[#FFDF85]">SV</span>
               </div>
             )}
 
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-black text-sm tracking-tight text-white truncate">SafeVault</span>
-                {/* Small POC Demo Ribbon */}
-                <span className="bg-[#C9A24B] text-[#1F1420] text-[9px] font-black uppercase px-1.5 py-0.5 rounded tracking-wider shadow-xs shrink-0">
-                  POC Demo
-                </span>
-              </div>
-              <div className="flex items-center gap-1 text-[11px] text-white/85 truncate">
-                <span className="truncate">Rahul Sharma</span>
-                <span className="text-[#FFDF85] font-semibold">· Premier Wealth (KYC Verified)</span>
-              </div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-semibold text-[16px] tracking-tight text-white truncate">SafeVault</span>
+              {/* Small POC Demo Ribbon */}
+              <span className="bg-[#C9A24B]/20 text-[#FFDF85] border border-[#C9A24B]/40 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full tracking-wider shadow-xs shrink-0">
+                POC Demo
+              </span>
             </div>
           </div>
 
-          {/* Action Icons: 3-way Theme Toggle (Light/Dark/System), Notifications, Frame Toggle */}
-          <div className="flex items-center gap-1 shrink-0">
+          {/* Action Icons: Theme Toggle, Notifications, Avatar */}
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer flex items-center justify-center"
-              title={`Theme: ${theme.toUpperCase()} (Click to change)`}
+              className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer flex items-center justify-center"
+              title={`Theme: ${theme.toUpperCase()}`}
               aria-label={`Toggle theme: currently ${theme}`}
             >
               {theme === 'light' ? (
@@ -169,7 +163,7 @@ export const CustomerMobileShell: React.FC = () => {
             {/* Notification Bell */}
             <button
               onClick={() => setCustomerView('notifications')}
-              className="relative p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+              className="relative p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
               title="Notifications"
             >
               <Bell className="w-4 h-4" />
@@ -178,6 +172,16 @@ export const CustomerMobileShell: React.FC = () => {
                   {unreadCount}
                 </span>
               )}
+            </button>
+
+            {/* User Avatar Circle (32px) */}
+            <button
+              onClick={() => setCustomerView('profile')}
+              className="w-8 h-8 rounded-full bg-[#FFDF85] text-[#6B0E37] font-bold text-xs flex items-center justify-center cursor-pointer shadow-xs hover:ring-2 hover:ring-[#FFDF85]/50 transition-all shrink-0 ml-0.5"
+              title="Profile & KYC"
+              aria-label="User Profile Rahul Sharma"
+            >
+              RS
             </button>
 
             {/* Desktop Chassis View Toggle */}
@@ -227,103 +231,78 @@ export const CustomerMobileShell: React.FC = () => {
           )}
         </main>
 
-        {/* PERSISTENT 5-TAB BOTTOM NAVIGATION BAR */}
-        {/* [Home] | [Find Locker] | [Book Visit] | [Payments] | [More] */}
-        <nav className="fixed sm:absolute bottom-0 inset-x-0 bg-white/95 dark:bg-[#1A0C18]/95 backdrop-blur-md border-t border-[#E8DFE5] dark:border-[#381B30] px-2 py-1.5 flex items-center justify-around z-40 shadow-lg">
+        {/* PERSISTENT 5-TAB BOTTOM NAVIGATION BAR (Strict 64px) */}
+        {/* [Home] | [Find] | [Visits] | [Pay] | [More] */}
+        <nav className="fixed sm:absolute bottom-0 inset-x-0 h-[64px] bg-white/95 dark:bg-[#1A0C18]/95 backdrop-blur-md border-t border-[#E8DFE5] dark:border-[#381B30] px-3 flex items-center justify-around z-40 shadow-lg">
           
           {/* 1. HOME */}
           <button
             onClick={() => setCustomerView('dashboard')}
-            className={`flex flex-col items-center justify-center py-1 px-2 rounded-2xl transition-all min-h-[46px] active-press cursor-pointer ${
+            className={`flex flex-col items-center justify-center py-1 px-2 transition-all min-h-[48px] active-press cursor-pointer ${
               activeTab === 'home'
-                ? 'text-[#97144D] dark:text-[#E895B8] font-bold'
+                ? 'text-[#97144D] dark:text-[#FFDF85] font-semibold'
                 : 'text-[#6B5B68] dark:text-[#A898A4] hover:text-[#1F1420] dark:hover:text-white'
             }`}
           >
-            <div className={`p-1.5 rounded-xl transition-colors ${
-              activeTab === 'home'
-                ? 'bg-[#97144D]/10 dark:bg-[#97144D]/20 text-[#97144D] dark:text-[#E895B8]'
-                : ''
-            }`}>
-              <Home className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] mt-0.5 tracking-tight font-bold">Home</span>
+            <Home className="w-5 h-5" />
+            <span className="text-[11px] mt-0.5 tracking-tight font-medium">Home</span>
+            {activeTab === 'home' && <span className="w-1 h-1 rounded-full bg-[#C9A24B] mt-0.5" />}
           </button>
 
-          {/* 2. FIND LOCKER */}
+          {/* 2. FIND */}
           <button
             onClick={() => setCustomerView('find')}
-            className={`flex flex-col items-center justify-center py-1 px-2 rounded-2xl transition-all min-h-[46px] active-press cursor-pointer ${
+            className={`flex flex-col items-center justify-center py-1 px-2 transition-all min-h-[48px] active-press cursor-pointer ${
               activeTab === 'find'
-                ? 'text-[#97144D] dark:text-[#E895B8] font-bold'
+                ? 'text-[#97144D] dark:text-[#FFDF85] font-semibold'
                 : 'text-[#6B5B68] dark:text-[#A898A4] hover:text-[#1F1420] dark:hover:text-white'
             }`}
           >
-            <div className={`p-1.5 rounded-xl transition-colors ${
-              activeTab === 'find'
-                ? 'bg-[#97144D]/10 dark:bg-[#97144D]/20 text-[#97144D] dark:text-[#E895B8]'
-                : ''
-            }`}>
-              <Search className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] mt-0.5 tracking-tight font-bold">Find Locker</span>
+            <Search className="w-5 h-5" />
+            <span className="text-[11px] mt-0.5 tracking-tight font-medium">Find</span>
+            {activeTab === 'find' && <span className="w-1 h-1 rounded-full bg-[#C9A24B] mt-0.5" />}
           </button>
 
-          {/* 3. BOOK VISIT */}
+          {/* 3. VISITS */}
           <button
             onClick={() => setCustomerView('visit')}
-            className={`flex flex-col items-center justify-center py-1 px-2 rounded-2xl transition-all min-h-[46px] active-press cursor-pointer ${
+            className={`flex flex-col items-center justify-center py-1 px-2 transition-all min-h-[48px] active-press cursor-pointer ${
               activeTab === 'visit'
-                ? 'text-[#97144D] dark:text-[#E895B8] font-bold'
+                ? 'text-[#97144D] dark:text-[#FFDF85] font-semibold'
                 : 'text-[#6B5B68] dark:text-[#A898A4] hover:text-[#1F1420] dark:hover:text-white'
             }`}
           >
-            <div className={`p-1.5 rounded-xl transition-colors ${
-              activeTab === 'visit'
-                ? 'bg-[#97144D]/10 dark:bg-[#97144D]/20 text-[#97144D] dark:text-[#E895B8]'
-                : ''
-            }`}>
-              <Calendar className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] mt-0.5 tracking-tight font-bold">Book Visit</span>
+            <Calendar className="w-5 h-5" />
+            <span className="text-[11px] mt-0.5 tracking-tight font-medium">Visits</span>
+            {activeTab === 'visit' && <span className="w-1 h-1 rounded-full bg-[#C9A24B] mt-0.5" />}
           </button>
 
-          {/* 4. PAYMENTS */}
+          {/* 4. PAY */}
           <button
             onClick={() => setCustomerView('rent')}
-            className={`flex flex-col items-center justify-center py-1 px-2 rounded-2xl transition-all min-h-[46px] active-press cursor-pointer ${
+            className={`flex flex-col items-center justify-center py-1 px-2 transition-all min-h-[48px] active-press cursor-pointer ${
               activeTab === 'rent'
-                ? 'text-[#97144D] dark:text-[#E895B8] font-bold'
+                ? 'text-[#97144D] dark:text-[#FFDF85] font-semibold'
                 : 'text-[#6B5B68] dark:text-[#A898A4] hover:text-[#1F1420] dark:hover:text-white'
             }`}
           >
-            <div className={`p-1.5 rounded-xl transition-colors ${
-              activeTab === 'rent'
-                ? 'bg-[#97144D]/10 dark:bg-[#97144D]/20 text-[#97144D] dark:text-[#E895B8]'
-                : ''
-            }`}>
-              <CreditCard className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] mt-0.5 tracking-tight font-bold">Payments</span>
+            <CreditCard className="w-5 h-5" />
+            <span className="text-[11px] mt-0.5 tracking-tight font-medium">Pay</span>
+            {activeTab === 'rent' && <span className="w-1 h-1 rounded-full bg-[#C9A24B] mt-0.5" />}
           </button>
 
           {/* 5. MORE (OPENS ALL SERVICES GRID DRAWER) */}
           <button
             onClick={() => setAllServicesOpen(true)}
-            className={`flex flex-col items-center justify-center py-1 px-2 rounded-2xl transition-all min-h-[46px] active-press cursor-pointer ${
-              activeTab === 'more'
-                ? 'text-[#97144D] dark:text-[#E895B8] font-bold'
+            className={`flex flex-col items-center justify-center py-1 px-2 transition-all min-h-[48px] active-press cursor-pointer ${
+              allServicesOpen
+                ? 'text-[#97144D] dark:text-[#FFDF85] font-semibold'
                 : 'text-[#6B5B68] dark:text-[#A898A4] hover:text-[#1F1420] dark:hover:text-white'
             }`}
           >
-            <div className={`p-1.5 rounded-xl transition-colors ${
-              allServicesOpen
-                ? 'bg-[#97144D]/10 dark:bg-[#97144D]/20 text-[#97144D] dark:text-[#E895B8]'
-                : ''
-            }`}>
-              <Grid className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] mt-0.5 tracking-tight font-bold">More</span>
+            <Grid className="w-5 h-5" />
+            <span className="text-[11px] mt-0.5 tracking-tight font-medium">More</span>
+            {allServicesOpen && <span className="w-1 h-1 rounded-full bg-[#C9A24B] mt-0.5" />}
           </button>
 
         </nav>
